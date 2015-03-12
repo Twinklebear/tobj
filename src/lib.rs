@@ -53,6 +53,7 @@ pub enum LoadError {
     PositionParseError,
     NormalParseError,
     TexcoordParseError,
+    FaceParseError,
     GenericFailure,
 }
 
@@ -103,11 +104,25 @@ fn parse_floatn(val_str: Words, vals: &mut Vec<f32>, n: usize) -> bool {
     sz + n == vals.len()
 }
 
-/// Parse vertex indices for a face and write them to the index buffer
-/// will push new positions, normals and texcoords and create a new index if the vertex hasn't been created
-/// returns false if parsing a face failed
-fn parse_face(face_str: Words, pos: &mut Vec<f32>, normals: &mut Vec<f32>, texcoords: &mut Vec<f32>,
-              indices: &mut Vec<u32>, vertex_map: &mut BTreeMap<VertexIndices, u32>) -> bool {
+/// Parse vertex indices for a face and create an entry in the vertex map if needed
+/// The new index for the face's vertex will be next (and then next + 1 and so on if more are
+/// needed). Returns false if parsing a face failed
+/// TODO: We actually should take a mesh here and update its values. This method won't work well
+fn parse_face(face_str: Words, next: &mut u32, vertex_map: &mut BTreeMap<VertexIndices, u32>) -> bool {
+    // TODO: Triangulate faces
+    for f in face_str {
+        match VertexIndices::parse(f) {
+            Some(v) => {
+                // TODO: We need the mesh here b/c if we don't find the vertex we need
+                // to create it in the mesh and push a new index. Not just stick it in the map
+                if !vertex_map.contains_key(&v) {
+                    vertex_map.insert(v, *next);
+                    *next = *next + 1;
+                }
+            },
+            None => return false,
+        }
+    }
     true
 }
 
@@ -131,6 +146,8 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut tmp_pos = Vec::new();
     let mut tmp_normals = Vec::new();
     let mut tmp_texcoords = Vec::new();
+    let mut tmp_idx_map = BTreeMap::new();
+    let mut next = 0;
     for line in reader.lines() {
         // We just need the line for debugging for a bit
         let (line, mut words) = match line {
@@ -162,13 +179,8 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             },
             Some("f") => {
                 println!("Will parse face {}", line);
-                let face = match words.next() {
-                    Some(f) => VertexIndices::parse(f),
-                    None => None,
-                };
-                match face {
-                    Some(f) => println!("Valid face, {:?}", f),
-                    None => println!("Invalid face string"),
+                if !parse_face(words, &mut next, &mut tmp_idx_map) {
+                    return Err(LoadError::FaceParseError);
                 }
             },
             Some("o") => { println!("Will parse object {}", line); },
@@ -182,6 +194,7 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     println!("Positions: {:?}", tmp_pos);
     println!("Normals: {:?}", tmp_normals);
     println!("Texcoords: {:?}", tmp_texcoords);
+    println!("Index Map: {:?}", tmp_idx_map);
     Ok(models)
 }
 
