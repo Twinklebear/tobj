@@ -50,6 +50,9 @@ pub enum LoadError {
     OpenFileFailed,
     ReadError,
     UnrecognizedCharacter,
+    PositionParseError,
+    NormalParseError,
+    TexcoordParseError,
     GenericFailure,
 }
 
@@ -86,6 +89,20 @@ impl VertexIndices {
     }
 }
 
+/// Parse the floatn information from the words, words is an iterator over the float strings
+/// Returns false if parsing failed
+fn parse_floatn(val_str: Words, vals: &mut Vec<f32>, n: usize) -> bool {
+    let sz = vals.len();
+    for p in val_str {
+        match FromStr::from_str(p) {
+            Ok(x) => vals.push(x),
+            Err(_) => return false,
+        }
+    }
+    // Require that we found an x, y, z coordinate
+    sz + n == vals.len()
+}
+
 /// Parse vertex indices for a face and write them to the index buffer
 /// will push new positions, normals and texcoords and create a new index if the vertex hasn't been created
 /// returns false if parsing a face failed
@@ -111,11 +128,9 @@ pub fn load_obj(file_name: &str) -> LoadResult {
 /// Load the various meshes in an OBJ buffer
 pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut models = Vec::new();
-    /*
     let mut tmp_pos = Vec::new();
     let mut tmp_normals = Vec::new();
     let mut tmp_texcoords = Vec::new();
-    */
     for line in reader.lines() {
         // We just need the line for debugging for a bit
         let (line, mut words) = match line {
@@ -127,9 +142,24 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
         };
         match words.next() {
             Some("#") => { println!("Skipping comment"); continue; },
-            Some("v") => { println!("Will parse vertex {}", line); },
-            Some("vt") => { println!("Will parse texcoord {}", line); },
-            Some("vn") => { println!("Will parse normal {}", line); },
+            Some("v") => {
+                println!("Will parse vertex {}", line);
+                if !parse_floatn(words, &mut tmp_pos, 3) {
+                    return Err(LoadError::PositionParseError);
+                }
+            },
+            Some("vt") => {
+                println!("Will parse texcoord {}", line);
+                if !parse_floatn(words, &mut tmp_texcoords, 2) {
+                    return Err(LoadError::TexcoordParseError);
+                }
+            },
+            Some("vn") => {
+                println!("Will parse normal {}", line);
+                if !parse_floatn(words, &mut tmp_normals, 3) {
+                    return Err(LoadError::NormalParseError);
+                }
+            },
             Some("f") => {
                 println!("Will parse face {}", line);
                 let face = match words.next() {
@@ -149,6 +179,9 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             Some(_) => { println!("Unrecognized character"); return Err(LoadError::UnrecognizedCharacter) },
         }
     }
+    println!("Positions: {:?}", tmp_pos);
+    println!("Normals: {:?}", tmp_normals);
+    println!("Texcoords: {:?}", tmp_texcoords);
     Ok(models)
 }
 
