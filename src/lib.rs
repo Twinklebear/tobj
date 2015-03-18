@@ -5,7 +5,6 @@
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
-use std::cmp::Eq;
 use std::collections::BTreeMap;
 use std::str::{FromStr, Words};
 
