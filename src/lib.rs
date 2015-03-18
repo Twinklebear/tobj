@@ -5,7 +5,7 @@
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
-use std::cmp::{Eq, Ord, PartialOrd, Ordering};
+use std::cmp::Eq;
 use std::collections::BTreeMap;
 use std::str::{FromStr, Words};
 
@@ -129,7 +129,7 @@ fn parse_face(face_str: Words, next: &mut u32, vertex_map: &mut BTreeMap<VertexI
 /// Load the various meshes in an OBJ file
 pub fn load_obj(file_name: &str) -> LoadResult {
     println!("Loading file {}", file_name);
-    let mut file = match File::open(file_name) {
+    let file = match File::open(file_name) {
         Ok(f) => f,
         Err(e) => {
             println!("tobj::load_obj - failed to open {} due to {}", file_name, e);
