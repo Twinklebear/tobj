@@ -5,8 +5,8 @@
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
-use std::collections::BTreeMap;
-use std::str::{FromStr, Words};
+use std::collections::HashMap;
+use std::str::{FromStr, Split};
 
 /// A mesh for some model containing its triangle geometry
 /// This object could be a single polygon group or object within a file
@@ -63,8 +63,7 @@ pub type LoadResult = Result<Vec<Model>, LoadError>;
 /// Struct storing indices corresponding to the vertex
 /// Some vertices may not have texcoords or normals, 0 is used to indicate this
 /// as OBJ indices begin at 1
-/// TODO: Should use std::btree_map::BTreeMap to store the mapping of VertexIndices -> index
-#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct VertexIndices {
     v: u32,
     vt: u32,
@@ -91,7 +90,7 @@ impl VertexIndices {
 
 /// Parse the floatn information from the words, words is an iterator over the float strings
 /// Returns false if parsing failed
-fn parse_floatn(val_str: Words, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
         match FromStr::from_str(p) {
@@ -107,7 +106,8 @@ fn parse_floatn(val_str: Words, vals: &mut Vec<f32>, n: usize) -> bool {
 /// The new index for the face's vertex will be next (and then next + 1 and so on if more are
 /// needed). Returns false if parsing a face failed
 /// TODO: We actually should take a mesh here and update its values. This method won't work well
-fn parse_face(face_str: Words, next: &mut u32, vertex_map: &mut BTreeMap<VertexIndices, u32>) -> bool {
+/// TODO: Use HashMap<VertexIndices, u32> here instead
+fn parse_face(face_str: Split<char>, next: &mut u32, vertex_map: &mut HashMap<VertexIndices, u32>) -> bool {
     // TODO: Triangulate faces
     for f in face_str {
         match VertexIndices::parse(f) {
@@ -145,12 +145,13 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut tmp_pos = Vec::new();
     let mut tmp_normals = Vec::new();
     let mut tmp_texcoords = Vec::new();
-    let mut tmp_idx_map = BTreeMap::new();
+    let mut tmp_idx_map = HashMap::new();
     let mut next = 0;
     for line in reader.lines() {
         // We just need the line for debugging for a bit
+        // TODO: Switch back to using `words` when it becomes stable
         let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].words()),
+            Ok(ref line) => (&line[..], line[..].split(' ')),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -187,7 +188,10 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             Some("mtllib") => { println!("Will parse material lib {}", line); },
             Some("usemtl") => { println!("Will parse usemtl {}", line); },
             None => { println!("Skipping empty line"); continue; },
-            Some(_) => { println!("Unrecognized character"); return Err(LoadError::UnrecognizedCharacter) },
+            // TODO: throw error on unrecognized character. Currentl with split we get a newline
+            // and incorrectly through so this is off temporarily. Blocked until `words` becomes
+            // stable
+            Some(c) => { println!("Unrecognized character: {}", c); /*return Err(LoadError::UnrecognizedCharacter) */ },
         }
     }
     println!("Positions: {:?}", tmp_pos);
