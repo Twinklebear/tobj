@@ -14,16 +14,20 @@ use std::str::{FromStr, Split};
 /// if it only contains a single mesh
 #[derive(Debug)]
 pub struct Mesh {
-    positions: Vec<f32>,
-    normals: Option<Vec<f32>>,
-    texcoords: Option<Vec<f32>>,
-    faces: Vec<u32>,
+    pub positions: Vec<f32>,
+    pub normals: Vec<f32>,
+    pub texcoords: Vec<f32>,
+    pub faces: Vec<u32>,
 }
 
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(pos: Vec<f32>, norm: Option<Vec<f32>>, tex: Option<Vec<f32>>, faces: Vec<u32>) -> Mesh {
+    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, faces: Vec<u32>) -> Mesh {
         Mesh { positions: pos, normals: norm, texcoords: tex, faces: faces }
+    }
+    /// Create a new empty mesh
+    pub fn empty() -> Mesh {
+        Mesh { positions: Vec::new(), normals: Vec::new(), texcoords: Vec::new(), faces: Vec::new() }
     }
 }
 
@@ -31,8 +35,8 @@ impl Mesh {
 /// This could be a group or object or the single model exported by the file
 #[derive(Debug)]
 pub struct Model {
-    mesh: Mesh,
-    name: String,
+    pub mesh: Mesh,
+    pub name: String,
 }
 
 impl Model {
@@ -65,9 +69,9 @@ pub type LoadResult = Result<Vec<Model>, LoadError>;
 /// as OBJ indices begin at 1
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct VertexIndices {
-    v: u32,
-    vt: u32,
-    vn: u32,
+    pub v: usize,
+    pub vt: usize,
+    pub vn: usize,
 }
 
 impl VertexIndices {
@@ -79,9 +83,13 @@ impl VertexIndices {
         let mut indices = [0; 3];
         for i in face_str.split('/').enumerate() {
             println!("Index: {}, element index: {}", i.1, i.0);
-            match FromStr::from_str(i.1) {
-                Ok(x) => indices[i.0] = x,
-                Err(_) => return None,
+            // Catch case of v//vn where we'll find an empty string in one of our splits
+            // since there are no texcoords for the mesh
+            if !i.1.is_empty() {
+                match usize::from_str(i.1) {
+                    Ok(x) => indices[i.0] = x - 1,
+                    Err(_) => return None,
+                }
             }
         }
         Some(VertexIndices { v: indices[0], vt: indices[1], vn: indices[2] })
@@ -98,7 +106,7 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
             Err(_) => return false,
         }
     }
-    // Require that we found an x, y, z coordinate
+    // Require that we found the desired number of floats
     sz + n == vals.len()
 }
 
@@ -106,17 +114,32 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
 /// The new index for the face's vertex will be next (and then next + 1 and so on if more are
 /// needed). Returns false if parsing a face failed
 /// TODO: We actually should take a mesh here and update its values. This method won't work well
-/// TODO: Use HashMap<VertexIndices, u32> here instead
-fn parse_face(face_str: Split<char>, next: &mut u32, vertex_map: &mut HashMap<VertexIndices, u32>) -> bool {
+fn parse_face(face_str: Split<char>, next: &mut u32, index_map: &mut HashMap<VertexIndices, u32>,
+              in_pos: &Vec<f32>, in_texcoord: &Vec<f32>, in_norm: &Vec<f32>, mesh: &mut Mesh) -> bool {
     // TODO: Triangulate faces
     for f in face_str {
         match VertexIndices::parse(f) {
             Some(v) => {
-                // TODO: We need the mesh here b/c if we don't find the vertex we need
-                // to create it in the mesh and push a new index. Not just stick it in the map
-                if !vertex_map.contains_key(&v) {
-                    vertex_map.insert(v, *next);
-                    *next = *next + 1;
+                match index_map.get(&v){
+                    Some(&idx) => mesh.faces.push(idx),
+                    None => {
+                        // Add the vertex to the mesh
+                        mesh.positions.push(in_pos[v.v * 3]);
+                        mesh.positions.push(in_pos[v.v * 3 + 1]);
+                        mesh.positions.push(in_pos[v.v * 3 + 2]);
+                        if !in_texcoord.is_empty() {
+                            mesh.texcoords.push(in_texcoord[v.vt * 2]);
+                            mesh.texcoords.push(in_texcoord[v.vt * 2 + 1]);
+                        }
+                        if !in_norm.is_empty() {
+                            mesh.normals.push(in_norm[v.vn * 3]);
+                            mesh.normals.push(in_norm[v.vn * 3 + 1]);
+                            mesh.normals.push(in_norm[v.vn * 3 + 2]);
+                        }
+                        mesh.faces.push(*next);
+                        index_map.insert(v, *next);
+                        *next = *next + 1;
+                    }
                 }
             },
             None => return false,
@@ -143,9 +166,10 @@ pub fn load_obj(file_name: &str) -> LoadResult {
 pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut models = Vec::new();
     let mut tmp_pos = Vec::new();
-    let mut tmp_normals = Vec::new();
-    let mut tmp_texcoords = Vec::new();
+    let mut tmp_texcoord = Vec::new();
+    let mut tmp_normal = Vec::new();
     let mut tmp_idx_map = HashMap::new();
+    let mut tmp_mesh = Mesh::empty();
     let mut next = 0;
     for line in reader.lines() {
         // We just need the line for debugging for a bit
@@ -167,19 +191,20 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             },
             Some("vt") => {
                 println!("Will parse texcoord {}", line);
-                if !parse_floatn(words, &mut tmp_texcoords, 2) {
+                if !parse_floatn(words, &mut tmp_texcoord, 2) {
                     return Err(LoadError::TexcoordParseError);
                 }
             },
             Some("vn") => {
                 println!("Will parse normal {}", line);
-                if !parse_floatn(words, &mut tmp_normals, 3) {
+                if !parse_floatn(words, &mut tmp_normal, 3) {
                     return Err(LoadError::NormalParseError);
                 }
             },
             Some("f") => {
                 println!("Will parse face {}", line);
-                if !parse_face(words, &mut next, &mut tmp_idx_map) {
+                if !parse_face(words, &mut next, &mut tmp_idx_map, &tmp_pos, &tmp_texcoord,
+                               &tmp_normal, &mut tmp_mesh) {
                     return Err(LoadError::FaceParseError);
                 }
             },
@@ -188,21 +213,24 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             Some("mtllib") => { println!("Will parse material lib {}", line); },
             Some("usemtl") => { println!("Will parse usemtl {}", line); },
             None => { println!("Skipping empty line"); continue; },
-            // TODO: throw error on unrecognized character. Currentl with split we get a newline
+            // TODO: throw error on unrecognized character. Currently with split we get a newline
             // and incorrectly through so this is off temporarily. Blocked until `words` becomes
             // stable
             Some(c) => { println!("Unrecognized character: {}", c); /*return Err(LoadError::UnrecognizedCharacter) */ },
         }
     }
-    println!("Positions: {:?}", tmp_pos);
-    println!("Normals: {:?}", tmp_normals);
-    println!("Texcoords: {:?}", tmp_texcoords);
+    println!("Temp Mesh: {:?}", tmp_mesh);
     println!("Index Map: {:?}", tmp_idx_map);
     Ok(models)
 }
 
 #[test]
-fn test_basic(){
+fn test_tri(){
     assert!(load_obj("triangle.obj").is_ok());
+}
+
+#[test]
+fn test_quad(){
+    assert!(load_obj("quad.obj").is_ok());
 }
 
