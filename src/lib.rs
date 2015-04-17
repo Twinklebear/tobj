@@ -12,7 +12,7 @@ use std::str::{FromStr, Split};
 /// This object could be a single polygon group or object within a file
 /// that defines multiple groups/objects or be the only mesh within the file
 /// if it only contains a single mesh
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mesh {
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
@@ -57,6 +57,7 @@ pub enum LoadError {
     NormalParseError,
     TexcoordParseError,
     FaceParseError,
+    InvalidObjectName,
     GenericFailure,
 }
 
@@ -67,7 +68,7 @@ pub type LoadResult = Result<Vec<Model>, LoadError>;
 /// Struct storing indices corresponding to the vertex
 /// Some vertices may not have texcoords or normals, 0 is used to indicate this
 /// as OBJ indices begin at 1
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Copy, Clone)]
 struct VertexIndices {
     pub v: usize,
     pub vt: usize,
@@ -96,6 +97,13 @@ impl VertexIndices {
     }
 }
 
+/// Enum representing either a quad or triangle face, storing indices for the face vertices
+#[derive(Debug)]
+enum Face {
+    Triangle(VertexIndices, VertexIndices, VertexIndices),
+    Quad(VertexIndices, VertexIndices, VertexIndices, VertexIndices)
+}
+
 /// Parse the floatn information from the words, words is an iterator over the float strings
 /// Returns false if parsing failed
 fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
@@ -110,42 +118,76 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
     sz + n == vals.len()
 }
 
-/// Parse vertex indices for a face and create an entry in the vertex map if needed
-/// The new index for the face's vertex will be next (and then next + 1 and so on if more are
-/// needed). Returns false if parsing a face failed
-/// TODO: We actually should take a mesh here and update its values. This method won't work well
-fn parse_face(face_str: Split<char>, next: &mut u32, index_map: &mut HashMap<VertexIndices, u32>,
-              in_pos: &Vec<f32>, in_texcoord: &Vec<f32>, in_norm: &Vec<f32>, mesh: &mut Mesh) -> bool {
-    // TODO: Triangulate faces
+/// Parse vertex indices for a face and append it to the list of faces passed
+/// returns false if an error occured parsing the face
+fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>) -> bool {
+    let mut indices = Vec::new();
     for f in face_str {
         match VertexIndices::parse(f) {
-            Some(v) => {
-                match index_map.get(&v){
-                    Some(&idx) => mesh.faces.push(idx),
-                    None => {
-                        // Add the vertex to the mesh
-                        mesh.positions.push(in_pos[v.v * 3]);
-                        mesh.positions.push(in_pos[v.v * 3 + 1]);
-                        mesh.positions.push(in_pos[v.v * 3 + 2]);
-                        if !in_texcoord.is_empty() {
-                            mesh.texcoords.push(in_texcoord[v.vt * 2]);
-                            mesh.texcoords.push(in_texcoord[v.vt * 2 + 1]);
-                        }
-                        if !in_norm.is_empty() {
-                            mesh.normals.push(in_norm[v.vn * 3]);
-                            mesh.normals.push(in_norm[v.vn * 3 + 1]);
-                            mesh.normals.push(in_norm[v.vn * 3 + 2]);
-                        }
-                        mesh.faces.push(*next);
-                        index_map.insert(v, *next);
-                        *next = *next + 1;
-                    }
-                }
-            },
+            Some(v) => indices.push(v),
             None => return false,
         }
     }
+    // Check if we read a triangle or a quad face and push it on
+    match indices.len() {
+        3 => faces.push(Face::Triangle(indices[0], indices[1], indices[2])),
+        4 => faces.push(Face::Quad(indices[0], indices[1], indices[2], indices[3])),
+        _ => return false,
+    }
     true
+}
+
+/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the index_map)
+/// or appending the position, texcoord and normal as appropriate and creating a new vertex
+fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert: &VertexIndices,
+              pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>) {
+    match index_map.get(vert){
+        Some(&i) => mesh.faces.push(i),
+        None => {
+            // Add the vertex to the mesh
+            mesh.positions.push(pos[vert.v * 3]);
+            mesh.positions.push(pos[vert.v * 3 + 1]);
+            mesh.positions.push(pos[vert.v * 3 + 2]);
+            if !texcoord.is_empty() {
+                mesh.texcoords.push(texcoord[vert.vt * 2]);
+                mesh.texcoords.push(texcoord[vert.vt * 2 + 1]);
+            }
+            if !normal.is_empty() {
+                mesh.normals.push(normal[vert.vn * 3]);
+                mesh.normals.push(normal[vert.vn * 3 + 1]);
+                mesh.normals.push(normal[vert.vn * 3 + 2]);
+            }
+            let next = index_map.len() as u32;
+            mesh.faces.push(next);
+            index_map.insert(*vert, next);
+        }
+    }
+}
+
+/// Export a list of faces to a mesh and return it, converting quads to tris
+fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>) -> Mesh {
+    let mut index_map = HashMap::new();
+    let mut mesh = Mesh::empty();
+    // TODO: When drain becomes stable we should use that, since we clear `faces` later anyway
+    for f in faces {
+        match f {
+            &Face::Triangle(ref a, ref b, ref c) => {
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+            },
+            &Face::Quad(ref a, ref b, ref c, ref d) => {
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+            }
+        }
+    }
+    mesh
 }
 
 /// Load the various meshes in an OBJ file
@@ -168,9 +210,10 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut tmp_pos = Vec::new();
     let mut tmp_texcoord = Vec::new();
     let mut tmp_normal = Vec::new();
-    let mut tmp_idx_map = HashMap::new();
-    let mut tmp_mesh = Mesh::empty();
-    let mut next = 0;
+    let mut tmp_faces: Vec<Face> = Vec::new();
+    // name of the current object being parsed
+    let mut name = String::new();
+    // Next index for a new face we might find
     for line in reader.lines() {
         // We just need the line for debugging for a bit
         // TODO: Switch back to using `words` when it becomes stable
@@ -203,12 +246,24 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             },
             Some("f") => {
                 println!("Will parse face {}", line);
-                if !parse_face(words, &mut next, &mut tmp_idx_map, &tmp_pos, &tmp_texcoord,
-                               &tmp_normal, &mut tmp_mesh) {
+                if !parse_face(words, &mut tmp_faces) {
                     return Err(LoadError::FaceParseError);
                 }
             },
-            Some("o") => { println!("Will parse object {}", line); },
+            Some("o") => {
+                // If we were already parsing an object then a new object name
+                // signals the end of the current one, so push it onto our list of objects
+                if !name.is_empty() && !tmp_faces.is_empty() {
+                    models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces), name));
+                    println!("Finished parsing {:?}", models[models.len() - 1]);
+                    tmp_faces.clear();
+                }
+                match words.next() {
+                    Some(n) => name = n.to_string(),
+                    None => return Err(LoadError::InvalidObjectName),
+                }
+                println!("Beginning to parse new object: {}", name);
+            },
             Some("g") => { println!("Will parse group {}", line); },
             Some("mtllib") => { println!("Will parse material lib {}", line); },
             Some("usemtl") => { println!("Will parse usemtl {}", line); },
@@ -219,8 +274,14 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             Some(c) => { println!("Unrecognized character: {}", c); /*return Err(LoadError::UnrecognizedCharacter) */ },
         }
     }
-    println!("Temp Mesh: {:?}", tmp_mesh);
-    println!("Index Map: {:?}", tmp_idx_map);
+    // For the last object in the file we won't encounter another object name to tell us when it's
+    // done, so if we're parsing an object push the last one on the list as well
+    if !name.is_empty() {
+        models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces), name));
+    }
+    for m in &models {
+        println!("Parsed Model: {:?}", m);
+    }
     Ok(models)
 }
 
