@@ -170,13 +170,13 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     let mut mesh = Mesh::empty();
     // TODO: When drain becomes stable we should use that, since we clear `faces` later anyway
     for f in faces {
-        match f {
-            &Face::Triangle(ref a, ref b, ref c) => {
+        match *f {
+            Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
             },
-            &Face::Quad(ref a, ref b, ref c, ref d) => {
+            Face::Quad(ref a, ref b, ref c, ref d) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
