@@ -218,7 +218,7 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
         // We just need the line for debugging for a bit
         // TODO: Switch back to using `words` when it becomes stable
         let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].split(' ')),
+            Ok(ref line) => (&line[..], line[..].trim().split(' ')),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -229,6 +229,7 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             Some("v") => {
                 println!("Will parse vertex {}", line);
                 if !parse_floatn(words, &mut tmp_pos, 3) {
+                    println!("Failed to parse 'v'");
                     return Err(LoadError::PositionParseError);
                 }
             },
