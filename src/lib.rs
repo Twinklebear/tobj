@@ -181,9 +181,9 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
 
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
             }
         }
     }
