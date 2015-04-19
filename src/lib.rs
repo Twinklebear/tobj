@@ -18,16 +18,18 @@ pub struct Mesh {
     pub normals: Vec<f32>,
     pub texcoords: Vec<f32>,
     pub indices: Vec<u32>,
+    pub material_id: Option<usize>,
 }
 
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>) -> Mesh {
-        Mesh { positions: pos, normals: norm, texcoords: tex, indices: indices }
+    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>, material_id: Option<usize>) -> Mesh {
+        Mesh { positions: pos, normals: norm, texcoords: tex, indices: indices, material_id: material_id }
     }
     /// Create a new empty mesh
     pub fn empty() -> Mesh {
-        Mesh { positions: Vec::new(), normals: Vec::new(), texcoords: Vec::new(), indices: Vec::new() }
+        Mesh { positions: Vec::new(), normals: Vec::new(), texcoords: Vec::new(), indices: Vec::new(),
+               material_id: None }
     }
 }
 
@@ -47,6 +49,34 @@ impl Model {
 }
 
 
+/// A material that may be referenced by one or more meshes. Standard MTL attributes are supported
+/// and any unrecognized ones will be stored as Strings in the `unknown_param` HashMap
+#[derive(Debug)]
+pub struct Material {
+    pub name: String,
+    pub ambient: [f32; 3],
+    pub diffuse: [f32; 3],
+    pub specular: [f32; 3],
+    pub shininess: f32,
+    pub dissolve: f32,
+    pub ambient_texture: String,
+    pub diffuse_texture: String,
+    pub specular_texture: String,
+    pub normal_texture: String,
+    pub dissolve_texture: String,
+    pub unknown_param: HashMap<String, String>,
+}
+
+impl Material {
+    pub fn empty() -> Material {
+        Material { name: String::new(), ambient: [0.0; 3], diffuse: [0.0; 3], specular: [0.0; 3],
+                   shininess: 0.0, dissolve: 1.0, ambient_texture: String::new(),
+                   diffuse_texture: String::new(), specular_texture: String::new(),
+                   normal_texture: String::new(), dissolve_texture: String::new(),
+                   unknown_param: HashMap::new() }
+    }
+}
+
 /// TODO: Decide on various errors we'll return
 #[derive(Debug)]
 pub enum LoadError {
@@ -57,6 +87,7 @@ pub enum LoadError {
     NormalParseError,
     TexcoordParseError,
     FaceParseError,
+    MaterialParseError,
     InvalidObjectName,
     GenericFailure,
 }
@@ -64,6 +95,10 @@ pub enum LoadError {
 /// LoadResult is a result containing all the models loaded from the file or any
 /// error that occured while loading
 pub type LoadResult = Result<Vec<Model>, LoadError>;
+
+/// MTLLoadResult is a result containing all the materials loaded from the file and a map of MTL
+/// name to index or the error that occured while loading
+pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadError>;
 
 /// Struct storing indices corresponding to the vertex
 /// Some vertices may not have texcoords or normals, 0 is used to indicate this
@@ -125,6 +160,7 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
         if p.is_empty() {
             continue;
         }
+        // This stupid trim is only needed b/c words isn't stable
         match FromStr::from_str(p.trim()) {
             Ok(x) => vals.push(x),
             Err(_) => return false,
@@ -132,6 +168,18 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
     }
     // Require that we found the desired number of floats
     sz + n == vals.len()
+}
+
+/// Parse the float3 into the array passed, returns false if parsing failed
+fn parse_float3(val_str: Split<char>, vals: &mut [f32; 3]) -> bool {
+    for (i, p) in val_str.enumerate() {
+        // This trim is only needed b/c words isn't stable
+        match FromStr::from_str(p.trim()) {
+            Ok(x) => vals[i] = x,
+            Err(_) => return false,
+        }
+    }
+    true
 }
 
 /// Parse vertex indices for a face and append it to the list of faces passed
@@ -183,9 +231,10 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
 }
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
-fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>) -> Mesh {
+fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>, mat_id: Option<usize>) -> Mesh {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
+    mesh.material_id = mat_id;
     // TODO: When drain becomes stable we should use that, since we clear `faces` later anyway
     for f in faces {
         match *f {
@@ -222,16 +271,34 @@ pub fn load_obj(file_name: &str) -> LoadResult {
     load_obj_buf(&mut reader)
 }
 
+/// Load the materials defined in a MTL file
+pub fn load_mtl(file_name: &str) -> MTLLoadResult {
+    println!("Loading material {}", file_name);
+    let file = match File::open(file_name) {
+        Ok(f) => f,
+        Err(e) => {
+            println!("tobj::load_mtl - failed to open {} due to {}", file_name, e);
+            return Err(LoadError::OpenFileFailed);
+        },
+    };
+    let mut reader = BufReader::new(file);
+    load_mtl_buf(&mut reader)
+}
+
 /// Load the various meshes in an OBJ buffer
 pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     let mut models = Vec::new();
+    let mut materials: Vec<Material> = Vec::new();
+    let mut mat_map: HashMap<String, usize> = HashMap::new();
+
     let mut tmp_pos = Vec::new();
     let mut tmp_texcoord = Vec::new();
     let mut tmp_normal = Vec::new();
     let mut tmp_faces: Vec<Face> = Vec::new();
     // name of the current object being parsed
     let mut name = String::new();
-    // Next index for a new face we might find
+    // material used by the current object being parsed
+    let mut mat_id = None;
     for line in reader.lines() {
         // We just need the line for debugging for a bit
         // TODO: Switch back to using `words` when it becomes stable
@@ -273,7 +340,7 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
                 // If we were already parsing an object then a new object name
                 // signals the end of the current one, so push it onto our list of objects
                 if !name.is_empty() && !tmp_faces.is_empty() {
-                    models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces), name));
+                    models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces, mat_id), name));
                     println!("Finished parsing {:?}", models[models.len() - 1]);
                     tmp_faces.clear();
                 }
@@ -285,7 +352,18 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             },
             Some("g") => { println!("Will parse group {}", line); },
             Some("mtllib") => { println!("Will parse material lib {}", line); },
-            Some("usemtl") => { println!("Will parse usemtl {}", line); },
+            Some("usemtl") => {
+                println!("Will parse usemtl {}", line);
+                if let Some(mat_name) = words.next() {
+                    match mat_map.get(mat_name) {
+                        Some(m) => mat_id = Some(*m),
+                        None => {
+                            mat_id = None;
+                            println!("Warning: Object {} refers to unfound material {}", name, mat_name);
+                        }
+                    }
+                }
+            },
             None => { println!("Skipping empty line"); continue; },
             // TODO: throw error on unrecognized character. Currently with split we get a newline
             // and incorrectly through so this is off temporarily. Blocked until `words` becomes
@@ -296,12 +374,123 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     // For the last object in the file we won't encounter another object name to tell us when it's
     // done, so if we're parsing an object push the last one on the list as well
     if !name.is_empty() {
-        models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces), name));
+        models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces, mat_id), name));
     }
     for m in &models {
         println!("Parsed Model: {:?}", m);
     }
     Ok(models)
+}
+
+/// Load the various materials in a MTL buffer
+pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
+    let mut materials = Vec::new();
+    let mut mat_map = HashMap::new();
+    // The current material being parsed
+    let mut cur_mat = Material::empty();
+    for line in reader.lines() {
+        // We just need the line for debugging for a bit
+        // TODO: Switch back to using `words` when it becomes stable
+        let (line, mut words) = match line {
+            Ok(ref line) => (&line[..], line[..].trim().split(' ')),
+            Err(e) => {
+                println!("tobj::load_obj - failed to read line due to {}", e);
+                return Err(LoadError::ReadError);
+            },
+        };
+        match words.next() {
+            Some("#") => { println!("Skipping comment"); continue; },
+            Some("newmtl") => {
+                // If we were passing a material save it out to our vector
+                if !cur_mat.name.is_empty() {
+                    mat_map.insert(cur_mat.name.clone(), materials.len());
+                    materials.push(cur_mat);
+                }
+                cur_mat = Material::empty();
+                match words.next() {
+                    Some(n) => cur_mat.name = n.to_string(),
+                    None => return Err(LoadError::InvalidObjectName),
+                }
+                println!("Beginning to parse new material {}", cur_mat.name);
+            },
+            Some("Ka") => {
+                if !parse_float3(words, &mut cur_mat.ambient) {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("Kd") => {
+                if !parse_float3(words, &mut cur_mat.diffuse) {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("Ks") => {
+                if !parse_float3(words, &mut cur_mat.specular) {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("Ns") => {
+                if let Some(p) = words.next() {
+                    // This trim is only needed b/c words isn't stable
+                    match FromStr::from_str(p.trim()) {
+                        Ok(x) => cur_mat.shininess = x,
+                        Err(_) => return Err(LoadError::MaterialParseError),
+                    }
+                } else {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("d") => {
+                if let Some(p) = words.next() {
+                    // This trim is only needed b/c words isn't stable
+                    match FromStr::from_str(p.trim()) {
+                        Ok(x) => cur_mat.dissolve = x,
+                        Err(_) => return Err(LoadError::MaterialParseError),
+                    }
+                } else {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("map_Ka") => {
+                match words.next() {
+                    Some(tex) => cur_mat.ambient_texture = tex.to_string(),
+                    None => return Err(LoadError::MaterialParseError),
+                }
+            },
+            Some("map_Kd") => {
+                match words.next() {
+                    Some(tex) => cur_mat.diffuse_texture = tex.to_string(),
+                    None => return Err(LoadError::MaterialParseError),
+                }
+            },
+            Some("map_Ks") => {
+                match words.next() {
+                    Some(tex) => cur_mat.specular_texture = tex.to_string(),
+                    None => return Err(LoadError::MaterialParseError),
+                }
+            },
+            Some("map_Ns") => {
+                match words.next() {
+                    Some(tex) => cur_mat.normal_texture = tex.to_string(),
+                    None => return Err(LoadError::MaterialParseError),
+                }
+            },
+            Some("map_d") => {
+                match words.next() {
+                    Some(tex) => cur_mat.dissolve_texture = tex.to_string(),
+                    None => return Err(LoadError::MaterialParseError),
+                }
+            },
+            Some(unknown) => {
+                if !unknown.is_empty() {
+                    let param = line[unknown.len()..].trim().to_string();
+                    println!("Adding unknown parameter {}: {}", unknown, param);
+                    cur_mat.unknown_param.insert(unknown.to_string(), param);
+                }
+            },
+            None => { println!("Skipping empty line"); continue; },
+        }
+    }
+    Ok((materials, mat_map))
 }
 
 /// Print out all loaded properties of some models and associated materials (once mats are added)
@@ -325,18 +514,52 @@ fn print_model_info(models: &Vec<Model>) {
     }
 }
 
-#[test]
-fn test_tri(){
+/// Print out all loaded properties of some materials
+fn print_material_info(materials: &Vec<Material>) {
+    for (i, m) in materials.iter().enumerate() {
+        println!("material[{}].name = {}", i, m.name);
+        println!("  material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
+        println!("  material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1], m.diffuse[2]);
+        println!("  material.Ks = ({}, {}, {})", m.specular[0], m.specular[1], m.specular[2]);
+        println!("  material.Ns = {}", m.shininess);
+        println!("  material.d = {}", m.dissolve);
+        println!("  material.map_Ka = {}", m.ambient_texture);
+        println!("  material.map_Kd = {}", m.diffuse_texture);
+        println!("  material.map_Ks = {}", m.specular_texture);
+        println!("  material.map_Ns = {}", m.normal_texture);
+        println!("  material.map_d = {}", m.dissolve_texture);
+        for (k, v) in &m.unknown_param {
+            println!("  material.{} = {}", k, v);
+        }
+    }
+}
+
+//#[test]
+fn test_tri() {
     let triangle = load_obj("triangle.obj");
     assert!(triangle.is_ok());
     print_model_info(&triangle.unwrap());
 }
 
-#[test]
-fn test_quad(){
+//#[test]
+fn test_quad() {
     let quad = load_obj("quad.obj");
     assert!(quad.is_ok());
     print_model_info(&quad.unwrap());
 }
 
+#[test]
+fn test_cornell_box(){
+    let m = load_obj("cornell_box.obj");
+    assert!(m.is_ok());
+    print_model_info(&m.unwrap());
+}
+
+#[test]
+fn test_cornell_mtl() {
+    let m = load_mtl("cornell_box.mtl");
+    assert!(m.is_ok());
+    let (mats, map) = m.unwrap();
+    print_material_info(&mats);
+}
 
