@@ -17,17 +17,17 @@ pub struct Mesh {
     pub positions: Vec<f32>,
     pub normals: Vec<f32>,
     pub texcoords: Vec<f32>,
-    pub faces: Vec<u32>,
+    pub indices: Vec<u32>,
 }
 
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, faces: Vec<u32>) -> Mesh {
-        Mesh { positions: pos, normals: norm, texcoords: tex, faces: faces }
+    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>) -> Mesh {
+        Mesh { positions: pos, normals: norm, texcoords: tex, indices: indices }
     }
     /// Create a new empty mesh
     pub fn empty() -> Mesh {
-        Mesh { positions: Vec::new(), normals: Vec::new(), texcoords: Vec::new(), faces: Vec::new() }
+        Mesh { positions: Vec::new(), normals: Vec::new(), texcoords: Vec::new(), indices: Vec::new() }
     }
 }
 
@@ -78,17 +78,30 @@ struct VertexIndices {
 impl VertexIndices {
     /// Parse the vertex indices from the face string
     /// Valid face strings are those that are valid for a Wavefront OBJ file
+    /// Also handles relative face indices (negative values) which is why passing the number of
+    /// positions, texcoords and normals is required
     /// Returns None if the face string is invalid
-    pub fn parse(face_str: &str) -> Option<VertexIndices> {
-        println!("Parsing face string {}", face_str);
+    pub fn parse(face_str: &str, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> Option<VertexIndices> {
         let mut indices = [0; 3];
         for i in face_str.split('/').enumerate() {
-            println!("Index: {}, element index: {}", i.1, i.0);
             // Catch case of v//vn where we'll find an empty string in one of our splits
             // since there are no texcoords for the mesh
             if !i.1.is_empty() {
-                match usize::from_str(i.1) {
-                    Ok(x) => indices[i.0] = x - 1,
+                match isize::from_str(i.1) {
+                    Ok(x) => {
+                        // Handle relative indices
+                        indices[i.0] =
+                            if x < 0 {
+                                match i.0 {
+                                    0 => (x + pos_sz as isize) as usize,
+                                    1 => (x + tex_sz as isize) as usize,
+                                    2 => (x + norm_sz as isize) as usize,
+                                    _ => panic!("Invalid number of elements for a face (> 3)!"),
+                                }
+                            } else {
+                                (x - 1) as usize
+                            };
+                    },
                     Err(_) => return None,
                 }
             }
@@ -109,7 +122,10 @@ enum Face {
 fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
-        match FromStr::from_str(p) {
+        if p.is_empty() {
+            continue;
+        }
+        match FromStr::from_str(p.trim()) {
             Ok(x) => vals.push(x),
             Err(_) => return false,
         }
@@ -119,11 +135,13 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
 }
 
 /// Parse vertex indices for a face and append it to the list of faces passed
+/// Also handles relative face indices (negative values) which is why passing the number of
+/// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>) -> bool {
+fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
-        match VertexIndices::parse(f) {
+        match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
             Some(v) => indices.push(v),
             None => return false,
         }
@@ -142,7 +160,7 @@ fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>) -> bool {
 fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert: &VertexIndices,
               pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>) {
     match index_map.get(vert){
-        Some(&i) => mesh.faces.push(i),
+        Some(&i) => mesh.indices.push(i),
         None => {
             // Add the vertex to the mesh
             mesh.positions.push(pos[vert.v * 3]);
@@ -158,7 +176,7 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
                 mesh.normals.push(normal[vert.vn * 3 + 2]);
             }
             let next = index_map.len() as u32;
-            mesh.faces.push(next);
+            mesh.indices.push(next);
             index_map.insert(*vert, next);
         }
     }
@@ -247,7 +265,7 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
             },
             Some("f") => {
                 println!("Will parse face {}", line);
-                if !parse_face(words, &mut tmp_faces) {
+                if !parse_face(words, &mut tmp_faces, tmp_pos.len() / 3, tmp_texcoord.len() / 2, tmp_normal.len() / 3) {
                     return Err(LoadError::FaceParseError);
                 }
             },
@@ -286,13 +304,39 @@ pub fn load_obj_buf<B: BufRead>(reader: &mut B) -> LoadResult {
     Ok(models)
 }
 
+/// Print out all loaded properties of some models and associated materials (once mats are added)
+fn print_model_info(models: &Vec<Model>) {
+    println!("# of models: {}", models.len());
+    for (i, m) in models.iter().enumerate() {
+        let mesh = &m.mesh;
+        println!("model[{}].name = {}", i, m.name);
+        println!("Size of model[{}].indices: {}", i, mesh.indices.len());
+
+        for f in 0..(mesh.indices.len() / 3) {
+            println!("  idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f], mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
+        }
+
+        println!("model[{}].vertices: {}", i, mesh.positions.len());
+        assert!(mesh.positions.len() % 3 == 0);
+        for v in 0..(mesh.positions.len() / 3) {
+            println!("  v[{}] = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
+        }
+        // TODO: loop through and print all materials
+    }
+}
+
 #[test]
 fn test_tri(){
-    assert!(load_obj("triangle.obj").is_ok());
+    let triangle = load_obj("triangle.obj");
+    assert!(triangle.is_ok());
+    print_model_info(&triangle.unwrap());
 }
 
 #[test]
 fn test_quad(){
-    assert!(load_obj("quad.obj").is_ok());
+    let quad = load_obj("quad.obj");
+    assert!(quad.is_ok());
+    print_model_info(&quad.unwrap());
 }
+
 
