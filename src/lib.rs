@@ -371,7 +371,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                         Some(m) => mat_id = Some(*m),
                         None => {
                             mat_id = None;
-                            println!("Warning: Object {} refers to unfound material {}", name, mat_name);
+                            println!("Warning: Object {} refers to unfound material: {}", name, mat_name);
                         }
                     }
                 }
@@ -548,17 +548,25 @@ fn print_material_info(materials: &Vec<Material>) {
 
 #[test]
 fn test_tri() {
-    let triangle = load_obj(&Path::new("triangle.obj"));
-    assert!(triangle.is_ok());
-    let (models, mats) = triangle.unwrap();
+    let m = load_obj(&Path::new("triangle.obj"));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
     print_model_info(&models, &mats);
 }
 
 #[test]
 fn test_quad() {
-    let quad = load_obj(&Path::new("quad.obj"));
-    assert!(quad.is_ok());
-    let (models, mats) = quad.unwrap();
+    let m = load_obj(&Path::new("quad.obj"));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    print_model_info(&models, &mats);
+}
+
+#[test]
+fn test_cornell() {
+    let m = load_obj(&Path::new("cornell_box.obj"));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
     print_model_info(&models, &mats);
 }
 
