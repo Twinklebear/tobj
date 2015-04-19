@@ -1,4 +1,56 @@
-//! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader)
+//! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
+//! Aims to be a simple and lightweight option for loading OBJ files, simply returns two vecs
+//! containing loaded models and materials. All models are made of triangles, any quad faces in an
+//! OBJ file will be converted to two triangles.
+//!
+//! # Example
+//! In this simple example we load the classic Cornell Box model that only defines positions and
+//! print out its attributes.
+//! ```
+//! let cornell_box = load_obj(&Path::new("cornell_box.obj"));
+//! assert!(cornell_box.is_ok());
+//! let (models, materials) = cornell_box.unwrap();
+//!
+//! println!("# of models: {}", models.len());
+//! println!("# of materials: {}", materials.len());
+//! for (i, m) in models.iter().enumerate() {
+//! 	let mesh = &m.mesh;
+//! 	println!("model[{}].name = {}", i, m.name);
+//! 	println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
+//! 
+//! 	println!("Size of model[{}].indices: {}", i, mesh.indices.len());
+//! 	for f in 0..(mesh.indices.len() / 3) {
+//! 		println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f],
+//! 			mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
+//! 	}
+//! 
+//! 	// Normals and texture coordinates are also loaded, but not printed in this example
+//! 	println!("model[{}].vertices: {}", i, mesh.positions.len());
+//! 	assert!(mesh.positions.len() % 3 == 0);
+//! 	for v in 0..(mesh.positions.len() / 3) {
+//! 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
+//! 			mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
+//! 	}
+//! 	print_material_info(materials);
+//! }
+//! for (i, m) in materials.iter().enumerate() {
+//! 	println!("material[{}].name = {}", i, m.name);
+//! 	println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
+//! 	println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1], m.diffuse[2]);
+//! 	println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1], m.specular[2]);
+//! 	println!("    material.Ns = {}", m.shininess);
+//! 	println!("    material.d = {}", m.dissolve);
+//! 	println!("    material.map_Ka = {}", m.ambient_texture);
+//! 	println!("    material.map_Kd = {}", m.diffuse_texture);
+//! 	println!("    material.map_Ks = {}", m.specular_texture);
+//! 	println!("    material.map_Ns = {}", m.normal_texture);
+//! 	println!("    material.map_d = {}", m.dissolve_texture);
+//! 	for (k, v) in &m.unknown_param {
+//! 		println!("    material.{} = {}", k, v);
+//! 	}
+//! }
+//! ```
+//!
 
 #![allow(dead_code)]
 
@@ -9,16 +61,37 @@ use std::fs::File;
 use std::collections::HashMap;
 use std::str::{FromStr, Split};
 
-/// A mesh for some model containing its triangle geometry
-/// This object could be a single polygon group or object within a file
-/// that defines multiple groups/objects or be the only mesh within the file
-/// if it only contains a single mesh
+/// A mesh made up of triangles loaded from some OBJ file
 #[derive(Debug, Clone)]
 pub struct Mesh {
+    /// Flattened 3 component floating point vectors, storing positions of vertices in the mesh
     pub positions: Vec<f32>,
+    /// Flattened 3 component floating point vectors, storing normals of vertices in the mesh. Not
+    /// all meshes have normals, if no normals are specified this Vec will be empty
     pub normals: Vec<f32>,
+    /// Flattened 2 component floating point vectors, storing texture coordinates of vertices in
+    /// the mesh. Not all meshes have normals, if no texture coordinates are specified this Vec
+    /// will be empty
     pub texcoords: Vec<f32>,
+    /// Indices for vertices of each triangle. Each face in the mesh is a triangle and the indices
+    /// specify the position, normal and texture coordinate for each vertex of the face.
+    ///
+    /// # Example:
+    /// ```
+    /// // For some mesh with positions, normals and texcoords load the attributes for vertex k
+    /// let i = mesh.indices[k];
+    /// vec3 pos = vec3 { x: mesh.positions[i * 3], y: mesh.positions[i * 3 + 1],
+    ///                   z: mesh.positions[i * 3 + 2] };
+    ///
+    /// vec3 normal = vec3 { x: mesh.normals[i * 3], y: mesh.normals[i * 3 + 1],
+    ///                      z: mesh.normals[i * 3 + 2] };
+    ///
+    /// vec3 texcoord = vec3 { x: mesh.texcoords[i * 3], y: mesh.texcoords[i * 3 + 1],
+    ///                        z: mesh.texcoords[i * 3 + 2] };
+    /// ```
     pub indices: Vec<u32>,
+    /// Optional material id associated with this mesh. The material id indexes into the Vec of
+    /// Materials loaded from the associated MTL file
     pub material_id: Option<usize>,
 }
 
@@ -34,11 +107,13 @@ impl Mesh {
     }
 }
 
-/// A named model within the file
-/// This could be a group or object or the single model exported by the file
+/// A named model within the file, associates some mesh with a name that was specified with an `o`
+/// or `g` keyword in the OBJ file
 #[derive(Debug)]
 pub struct Model {
+    /// Mesh used by the model containing its geometry
     pub mesh: Mesh,
+    /// Name assigned to this mesh
     pub name: String,
 }
 
@@ -54,17 +129,36 @@ impl Model {
 /// and any unrecognized ones will be stored as Strings in the `unknown_param` HashMap
 #[derive(Debug)]
 pub struct Material {
+    /// Material name as specified in the MTL file
     pub name: String,
+    /// Ambient color of the material
     pub ambient: [f32; 3],
+    /// Diffuse color of the material
     pub diffuse: [f32; 3],
+    /// Specular color of the material
     pub specular: [f32; 3],
+    /// Material shininess attribute
     pub shininess: f32,
+    /// Dissolve attribute is the alpha term for the material. Referred to as dissolve since that's
+    /// what the MTL file format docs refer to it as
     pub dissolve: f32,
+    /// Name of the ambient texture file for the material. No path is pre-pended to the texture
+    /// file names specified in the MTL file
     pub ambient_texture: String,
+    /// Name of the diffuse texture file for the material. No path is pre-pended to the texture
+    /// file names specified in the MTL file
     pub diffuse_texture: String,
+    /// Name of the specular texture file for the material. No path is pre-pended to the texture
+    /// file names specified in the MTL file
     pub specular_texture: String,
+    /// Name of the normal map texture file for the material. No path is pre-pended to the texture
+    /// file names specified in the MTL file
     pub normal_texture: String,
+    /// Name of the alpha map texture file for the material. No path is pre-pended to the texture
+    /// file names specified in the MTL file. Referred to as dissolve to match the MTL file format
+    /// specification
     pub dissolve_texture: String,
+    /// Key value pairs of any unrecognized parameters encountered while parsing the material
     pub unknown_param: HashMap<String, String>,
 }
 
@@ -78,7 +172,7 @@ impl Material {
     }
 }
 
-/// TODO: Decide on various errors we'll return
+/// Possible errors that may occur while loading OBJ and MTL files
 #[derive(Debug)]
 pub enum LoadError {
     OpenFileFailed,
@@ -117,7 +211,7 @@ impl VertexIndices {
     /// Also handles relative face indices (negative values) which is why passing the number of
     /// positions, texcoords and normals is required
     /// Returns None if the face string is invalid
-    pub fn parse(face_str: &str, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> Option<VertexIndices> {
+    fn parse(face_str: &str, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> Option<VertexIndices> {
         let mut indices = [0; 3];
         for i in face_str.split('/').enumerate() {
             // Catch case of v//vn where we'll find an empty string in one of our splits
@@ -261,7 +355,8 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     mesh
 }
 
-/// Load the various meshes in an OBJ file
+/// Load the various objects specified in the OBJ file and any associated MTL file
+/// Returns a pair of Vecs containing the loaded models and materials from the file.
 pub fn load_obj(file_name: &Path) -> LoadResult {
     let file = match File::open(file_name) {
         Ok(f) => f,
@@ -275,6 +370,8 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
 }
 
 /// Load the materials defined in a MTL file
+/// Returns a pair with a Vec holding all loaded materials and a HashMap containing a mapping of
+/// material names to indices in the Vec.
 pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
     let file = match File::open(file_name) {
         Ok(f) => f,
@@ -503,7 +600,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     Ok((materials, mat_map))
 }
 
-/// Print out all loaded properties of some models and associated materials (once mats are added)
+/// Print out all loaded properties of some models and associated materials
 pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
     println!("# of models: {}", models.len());
     println!("# of materials: {}", materials.len());
@@ -527,7 +624,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 }
 
 /// Print out all loaded properties of some materials
-fn print_material_info(materials: &Vec<Material>) {
+pub fn print_material_info(materials: &Vec<Material>) {
     for (i, m) in materials.iter().enumerate() {
         println!("material[{}].name = {}", i, m.name);
         println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);

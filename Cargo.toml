@@ -3,3 +3,15 @@
 name = "tobj"
 version = "0.0.1"
 authors = ["Will Usher <willusher.life@gmail.com>"]
+
+description = "A lightweight OBJ loader in the spirit of tinyobjloader"
+homepage = "https://github.com/Twinklebear/tobj"
+repository = "https://github.com/Twinklebear/tobj"
+readme = "README.md"
+keywords = ["obj"]
+license = "MIT"
+
+exclude = [
+	"*.obj",
+]
+
