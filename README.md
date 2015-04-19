@@ -32,7 +32,8 @@ for (i, m) in models.iter().enumerate() {
 			mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
 	}
 
-	// Normals and texture coordinates are also loaded, but not printed in this example
+	// Normals and texture coordinates are also loaded, but not printed
+	// in this example
 	println!("model[{}].vertices: {}", i, mesh.positions.len());
 	assert!(mesh.positions.len() % 3 == 0);
 	for v in 0..(mesh.positions.len() / 3) {
@@ -43,9 +44,12 @@ for (i, m) in models.iter().enumerate() {
 }
 for (i, m) in materials.iter().enumerate() {
 	println!("material[{}].name = {}", i, m.name);
-	println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
-	println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1], m.diffuse[2]);
-	println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1], m.specular[2]);
+	println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1],
+		m.ambient[2]);
+	println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1],
+		m.diffuse[2]);
+	println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1],
+		m.specular[2]);
 	println!("    material.Ns = {}", m.shininess);
 	println!("    material.d = {}", m.dissolve);
 	println!("    material.map_Ka = {}", m.ambient_texture);
