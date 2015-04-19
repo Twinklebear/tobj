@@ -13,6 +13,8 @@ Installation
 ---
 Add the [crate](https://crates.io/crates/tobj) as a dependency in your Cargo.toml and you're all set!
 
+[![](http://meritbadge.herokuapp.com/tobj)](https://crates.io/crates/tobj)
+
 Example
 ---
 In this simple example we load the classic Cornell Box model that only defines positions and
