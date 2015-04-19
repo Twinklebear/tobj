@@ -21,7 +21,12 @@ In this simple example we load the classic Cornell Box model that only defines p
 print out its attributes.
 
 ```rust
-let cornell_box = load_obj(&Path::new("cornell_box.obj"));
+extern crate tobj;
+
+use std::path::Path;
+use tobj;
+
+let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
 assert!(cornell_box.is_ok());
 let (models, materials) = cornell_box.unwrap();
 
@@ -38,16 +43,15 @@ for (i, m) in models.iter().enumerate() {
 			mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
 	}
 
-	// Normals and texture coordinates are also loaded, but not printed
-	// in this example
+	// Normals and texture coordinates are also loaded, but not printed in this example
 	println!("model[{}].vertices: {}", i, mesh.positions.len());
 	assert!(mesh.positions.len() % 3 == 0);
 	for v in 0..(mesh.positions.len() / 3) {
 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
 			mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
 	}
-	print_material_info(materials);
 }
+
 for (i, m) in materials.iter().enumerate() {
 	println!("material[{}].name = {}", i, m.name);
 	println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1],
@@ -67,4 +71,5 @@ for (i, m) in materials.iter().enumerate() {
 		println!("    material.{} = {}", k, v);
 	}
 }
+```
 
