@@ -8,7 +8,10 @@
 //! print out its attributes.
 //! 
 //! ```
-//! let cornell_box = load_obj(&Path::new("cornell_box.obj"));
+//! use std::path::Path;
+//! use tobj;
+//!
+//! let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
 //! assert!(cornell_box.is_ok());
 //! let (models, materials) = cornell_box.unwrap();
 //!
@@ -32,7 +35,6 @@
 //! 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
 //! 			mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
 //! 	}
-//! 	print_material_info(materials);
 //! }
 //! for (i, m) in materials.iter().enumerate() {
 //! 	println!("material[{}].name = {}", i, m.name);
@@ -79,15 +81,31 @@ pub struct Mesh {
     ///
     /// # Example:
     /// ```
-    /// // For some mesh with positions, normals and texcoords load the attributes for vertex k
-    /// let i = mesh.indices[k];
-    /// vec3 pos = vec3 { x: mesh.positions[i * 3], y: mesh.positions[i * 3 + 1],
-    ///                   z: mesh.positions[i * 3 + 2] };
+    /// // For some mesh with positions, normals and texcoords load the attributes
+    /// // for the first vertex
     ///
-    /// vec3 normal = vec3 { x: mesh.normals[i * 3], y: mesh.normals[i * 3 + 1],
-    ///                      z: mesh.normals[i * 3 + 2] };
+    /// use std::path::Path;
     ///
-    /// vec2 texcoord = vec2 { u: mesh.texcoords[i * 2], v: mesh.texcoords[i * 2 + 1] };
+    /// let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
+    /// assert!(cornell_box.is_ok());
+    /// let (models, materials) = cornell_box.unwrap();
+    ///
+    /// let mesh = &models[0].mesh;
+    /// let i = mesh.indices[0] as usize;
+    /// // pos = [x, y, z]
+    /// let pos = [mesh.positions[i * 3], mesh.positions[i * 3 + 1],
+    ///             mesh.positions[i * 3 + 2]];
+    ///
+    /// if !mesh.normals.is_empty() {
+    ///     // normal = [x, y, z]
+    ///     let normal = [mesh.normals[i * 3], mesh.normals[i * 3 + 1],
+    ///                   mesh.normals[i * 3 + 2]];
+    /// }
+    ///
+    /// if !mesh.texcoords.is_empty() {
+    ///     // texcoord = [u, v];
+    ///     let texcoord = [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]];
+    /// }
     /// ```
     pub indices: Vec<u32>,
     /// Optional material id associated with this mesh. The material id indexes into the Vec of
@@ -444,7 +462,6 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                     Some(n) => name = n.to_string(),
                     None => return Err(LoadError::InvalidObjectName),
                 }
-                //println!("Beginning to parse new object/group: {}", name);
             },
             Some("mtllib") => {
                 if let Some(mtllib) = words.next() {
@@ -452,7 +469,6 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                         Some(bp) => bp.join(mtllib),
                         None => Path::new(mtllib).to_path_buf(),
                     };
-                  //  println!("Will parse material lib {:?}", mat_file);
                     match load_mtl(mat_file.as_path()) {
                         Ok((mats, map)) => {
                             materials = mats;
@@ -460,6 +476,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                         },
                         Err(e) => return Err(e),
                     }
+                } else {
+                    return Err(LoadError::MaterialParseError);
                 }
             },
             Some("usemtl") => {
@@ -471,6 +489,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                             println!("Warning: Object {} refers to unfound material: {}", name, mat_name);
                         }
                     }
+                } else {
+                    return Err(LoadError::MaterialParseError);
                 }
             },
             // TODO: throw error on unrecognized character? Currently with split we get a newline
