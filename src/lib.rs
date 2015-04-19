@@ -6,6 +6,7 @@
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
 //! print out its attributes.
+//! 
 //! ```
 //! let cornell_box = load_obj(&Path::new("cornell_box.obj"));
 //! assert!(cornell_box.is_ok());
