@@ -305,8 +305,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     for line in reader.lines() {
         // We just need the line for debugging for a bit
         // TODO: Switch back to using `words` when it becomes stable
-        let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].trim().split(' ')),
+        let mut words = match line {
+            Ok(ref line) => line[..].trim().split(' '),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
