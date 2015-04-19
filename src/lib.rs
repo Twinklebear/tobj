@@ -495,6 +495,11 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             },
         }
     }
+    // Finalize the last material we were parsing
+    if !cur_mat.name.is_empty() {
+        mat_map.insert(cur_mat.name.clone(), materials.len());
+        materials.push(cur_mat);
+    }
     Ok((materials, mat_map))
 }
 
