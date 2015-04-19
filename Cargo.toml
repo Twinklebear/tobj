@@ -14,5 +14,6 @@ license = "MIT"
 
 exclude = [
 	"*.obj",
+	"*.mtl",
 ]
 

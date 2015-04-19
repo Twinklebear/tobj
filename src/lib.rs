@@ -87,8 +87,7 @@ pub struct Mesh {
     /// vec3 normal = vec3 { x: mesh.normals[i * 3], y: mesh.normals[i * 3 + 1],
     ///                      z: mesh.normals[i * 3 + 2] };
     ///
-    /// vec3 texcoord = vec3 { x: mesh.texcoords[i * 3], y: mesh.texcoords[i * 3 + 1],
-    ///                        z: mesh.texcoords[i * 3 + 2] };
+    /// vec2 texcoord = vec2 { u: mesh.texcoords[i * 2], v: mesh.texcoords[i * 2 + 1] };
     /// ```
     pub indices: Vec<u32>,
     /// Optional material id associated with this mesh. The material id indexes into the Vec of
