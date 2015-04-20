@@ -70,6 +70,7 @@ use std::str::{FromStr, Split};
 /// Load the Cornell box and get the attributes of the first vertex. It's assumed all meshes will
 /// have positions (required), but normals and texture coordinates are optional, in which case the
 /// corresponding Vec will be empty.
+///
 /// ```
 /// use std::path::Path;
 ///
