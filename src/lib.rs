@@ -65,6 +65,35 @@ use std::collections::HashMap;
 use std::str::{FromStr, Split};
 
 /// A mesh made up of triangles loaded from some OBJ file
+///
+/// # Example:
+/// Load the Cornell box and get the attributes of the first vertex. It's assumed all meshes will
+/// have positions (required), but normals and texture coordinates are optional, in which case the
+/// corresponding Vec will be empty.
+/// ```
+/// use std::path::Path;
+///
+/// let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
+/// assert!(cornell_box.is_ok());
+/// let (models, materials) = cornell_box.unwrap();
+///
+/// let mesh = &models[0].mesh;
+/// let i = mesh.indices[0] as usize;
+/// // pos = [x, y, z]
+/// let pos = [mesh.positions[i * 3], mesh.positions[i * 3 + 1],
+///             mesh.positions[i * 3 + 2]];
+///
+/// if !mesh.normals.is_empty() {
+///     // normal = [x, y, z]
+///     let normal = [mesh.normals[i * 3], mesh.normals[i * 3 + 1],
+///                   mesh.normals[i * 3 + 2]];
+/// }
+///
+/// if !mesh.texcoords.is_empty() {
+///     // texcoord = [u, v];
+///     let texcoord = [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]];
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing positions of vertices in the mesh
@@ -78,35 +107,6 @@ pub struct Mesh {
     pub texcoords: Vec<f32>,
     /// Indices for vertices of each triangle. Each face in the mesh is a triangle and the indices
     /// specify the position, normal and texture coordinate for each vertex of the face.
-    ///
-    /// # Example:
-    /// ```
-    /// // For some mesh with positions, normals and texcoords load the attributes
-    /// // for the first vertex
-    ///
-    /// use std::path::Path;
-    ///
-    /// let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
-    /// assert!(cornell_box.is_ok());
-    /// let (models, materials) = cornell_box.unwrap();
-    ///
-    /// let mesh = &models[0].mesh;
-    /// let i = mesh.indices[0] as usize;
-    /// // pos = [x, y, z]
-    /// let pos = [mesh.positions[i * 3], mesh.positions[i * 3 + 1],
-    ///             mesh.positions[i * 3 + 2]];
-    ///
-    /// if !mesh.normals.is_empty() {
-    ///     // normal = [x, y, z]
-    ///     let normal = [mesh.normals[i * 3], mesh.normals[i * 3 + 1],
-    ///                   mesh.normals[i * 3 + 2]];
-    /// }
-    ///
-    /// if !mesh.texcoords.is_empty() {
-    ///     // texcoord = [u, v];
-    ///     let texcoord = [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]];
-    /// }
-    /// ```
     pub indices: Vec<u32>,
     /// Optional material id associated with this mesh. The material id indexes into the Vec of
     /// Materials loaded from the associated MTL file
