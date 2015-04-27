@@ -5,7 +5,9 @@
 //!
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
-//! print out its attributes.
+//! print out its attributes. This example is a slightly trimmed down version of `print_model_info`
+//! and `print_material_info` combined together, see them for a version that also prints out
+//! normals and texture coordinates if the model has them.
 //! 
 //! ```
 //! use std::path::Path;

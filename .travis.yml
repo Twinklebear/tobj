@@ -3,6 +3,8 @@ sudo: false
 script:
     - cargo build --verbose && cargo test --verbose && cargo doc --verbose
 after_success:
+    - git config user.name "Travis-CI Doc Bot"
+    - git config user.email "willusher.life@gmail.com"
     - |
         [ $TRAVIS_BRANCH = master ] &&
         [ $TRAVIS_PULL_REQUEST = false ] &&
