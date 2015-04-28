@@ -221,9 +221,9 @@ pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadErr
 /// as OBJ indices begin at 1
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Copy, Clone)]
 struct VertexIndices {
-    pub v: usize,
-    pub vt: usize,
-    pub vn: usize,
+    pub v: isize,
+    pub vt: isize,
+    pub vn: isize,
 }
 
 impl VertexIndices {
@@ -233,7 +233,7 @@ impl VertexIndices {
     /// positions, texcoords and normals is required
     /// Returns None if the face string is invalid
     fn parse(face_str: &str, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> Option<VertexIndices> {
-        let mut indices = [0; 3];
+        let mut indices = [-1; 3];
         for i in face_str.split('/').enumerate() {
             // Catch case of v//vn where we'll find an empty string in one of our splits
             // since there are no texcoords for the mesh
@@ -244,13 +244,13 @@ impl VertexIndices {
                         indices[i.0] =
                             if x < 0 {
                                 match i.0 {
-                                    0 => (x + pos_sz as isize) as usize,
-                                    1 => (x + tex_sz as isize) as usize,
-                                    2 => (x + norm_sz as isize) as usize,
+                                    0 => x + pos_sz as isize,
+                                    1 => x + tex_sz as isize,
+                                    2 => x + norm_sz as isize,
                                     _ => panic!("Invalid number of elements for a face (> 3)!"),
                                 }
                             } else {
-                                (x - 1) as usize
+                                x - 1
                             };
                     },
                     Err(_) => return None,
@@ -329,18 +329,21 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
     match index_map.get(vert){
         Some(&i) => mesh.indices.push(i),
         None => {
+			let v = vert.v as usize;
             // Add the vertex to the mesh
-            mesh.positions.push(pos[vert.v * 3]);
-            mesh.positions.push(pos[vert.v * 3 + 1]);
-            mesh.positions.push(pos[vert.v * 3 + 2]);
-            if !texcoord.is_empty() {
-                mesh.texcoords.push(texcoord[vert.vt * 2]);
-                mesh.texcoords.push(texcoord[vert.vt * 2 + 1]);
+            mesh.positions.push(pos[v * 3]);
+            mesh.positions.push(pos[v * 3 + 1]);
+            mesh.positions.push(pos[v * 3 + 2]);
+            if !texcoord.is_empty() && vert.vt > -1 {
+				let vt = vert.vt as usize;
+                mesh.texcoords.push(texcoord[vt * 2]);
+                mesh.texcoords.push(texcoord[vt * 2 + 1]);
             }
-            if !normal.is_empty() {
-                mesh.normals.push(normal[vert.vn * 3]);
-                mesh.normals.push(normal[vert.vn * 3 + 1]);
-                mesh.normals.push(normal[vert.vn * 3 + 2]);
+            if !normal.is_empty() && vert.vn > -1 {
+				let vn = vert.vn as usize;
+                mesh.normals.push(normal[vn * 3]);
+                mesh.normals.push(normal[vn * 3 + 1]);
+                mesh.normals.push(normal[vn * 3 + 2]);
             }
             let next = index_map.len() as u32;
             mesh.indices.push(next);
@@ -518,7 +521,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut cur_mat = Material::empty();
     for line in reader.lines() {
         // We just need the line for debugging for a bit
-        // TODO: Switch back to using `words` when it becomes stable
+        // TODO: Switch back to using `split_whitespace` when it gets onto the beta channel
         let (line, mut words) = match line {
             Ok(ref line) => (&line[..], line[..].trim().split(' ')),
             Err(e) => {
@@ -634,13 +637,26 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 
         println!("Size of model[{}].indices: {}", i, mesh.indices.len());
         for f in 0..(mesh.indices.len() / 3) {
-            println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f], mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
+            println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f], mesh.indices[3 * f + 1],
+				mesh.indices[3 * f + 2]);
         }
 
         println!("model[{}].vertices: {}", i, mesh.positions.len());
+        println!("model[{}].normals: {}", i, mesh.normals.len());
+        println!("model[{}].texcoords: {}", i, mesh.texcoords.len());
         assert!(mesh.positions.len() % 3 == 0);
+        assert!(mesh.normals.len() % 3 == 0);
+        assert!(mesh.texcoords.len() % 2 == 0);
         for v in 0..(mesh.positions.len() / 3) {
-            println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
+            println!("    v[{}]  = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1],
+				mesh.positions[3 * v + 2]);
+			if !mesh.normals.is_empty() {
+				println!("    vn[{}] = ({}, {}, {})", v, mesh.normals[3 * v], mesh.normals[3 * v + 1],
+					mesh.normals[3 * v + 2]);
+			}
+			if !mesh.texcoords.is_empty() {
+				println!("    vt[{}] = ({}, {})", v, mesh.texcoords[2 * v], mesh.texcoords[2 * v + 1]);
+			}
         }
         print_material_info(materials);
     }
@@ -664,29 +680,5 @@ pub fn print_material_info(materials: &Vec<Material>) {
             println!("    material.{} = {}", k, v);
         }
     }
-}
-
-#[test]
-fn test_tri() {
-    let m = load_obj(&Path::new("triangle.obj"));
-    assert!(m.is_ok());
-    let (models, mats) = m.unwrap();
-    print_model_info(&models, &mats);
-}
-
-#[test]
-fn test_quad() {
-    let m = load_obj(&Path::new("quad.obj"));
-    assert!(m.is_ok());
-    let (models, mats) = m.unwrap();
-    print_model_info(&models, &mats);
-}
-
-#[test]
-fn test_cornell() {
-    let m = load_obj(&Path::new("cornell_box.obj"));
-    assert!(m.is_ok());
-    let (models, mats) = m.unwrap();
-    print_model_info(&models, &mats);
 }
 
