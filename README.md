@@ -14,6 +14,7 @@ Installation
 Add the [crate](https://crates.io/crates/tobj) as a dependency in your Cargo.toml and you're all set!
 
 [![](http://meritbadge.herokuapp.com/tobj)](https://crates.io/crates/tobj)
+[![Build Status](https://travis-ci.org/Twinklebear/tobj.svg?branch=master)](https://travis-ci.org/Twinklebear/tobj)
 
 Example
 ---
