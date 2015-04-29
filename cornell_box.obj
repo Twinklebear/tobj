@@ -6,6 +6,7 @@
    
 
 mtllib cornell_box.mtl
+mtllib cornell_box2.mtl
 
 o floor
 usemtl white

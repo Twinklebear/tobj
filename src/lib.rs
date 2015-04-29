@@ -118,7 +118,8 @@ pub struct Mesh {
 
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>, material_id: Option<usize>) -> Mesh {
+    pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>, material_id: Option<usize>)
+		-> Mesh {
         Mesh { positions: pos, normals: norm, texcoords: tex, indices: indices, material_id: material_id }
     }
     /// Create a new empty mesh
@@ -130,7 +131,7 @@ impl Mesh {
 
 /// A named model within the file, associates some mesh with a name that was specified with an `o`
 /// or `g` keyword in the OBJ file
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Model {
     /// Mesh used by the model containing its geometry
     pub mesh: Mesh,
@@ -148,7 +149,7 @@ impl Model {
 
 /// A material that may be referenced by one or more meshes. Standard MTL attributes are supported
 /// and any unrecognized ones will be stored as Strings in the `unknown_param` HashMap
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Material {
     /// Material name as specified in the MTL file
     pub name: String,
@@ -305,7 +306,8 @@ fn parse_float3(val_str: Split<char>, vals: &mut [f32; 3]) -> bool {
 /// Also handles relative face indices (negative values) which is why passing the number of
 /// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize, norm_sz: usize) -> bool {
+fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
+		      norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
         match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
@@ -353,7 +355,8 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
 }
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
-fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>, mat_id: Option<usize>) -> Mesh {
+fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>,
+				mat_id: Option<usize>) -> Mesh {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
     mesh.material_id = mat_id;
@@ -451,8 +454,9 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                 }
             },
             Some("f") => {
-                if !parse_face(words, &mut tmp_faces, tmp_pos.len() / 3, tmp_texcoord.len() / 2, tmp_normal.len() / 3) {
-                    return Err(LoadError::FaceParseError);
+                if !parse_face(words, &mut tmp_faces, tmp_pos.len() / 3, tmp_texcoord.len() / 2,
+							   tmp_normal.len() / 3) {
+					return Err(LoadError::FaceParseError);
                 }
             },
             // Just treating object and group tags identically. Should there be different behavior
@@ -461,7 +465,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                 // If we were already parsing an object then a new object name
                 // signals the end of the current one, so push it onto our list of objects
                 if !name.is_empty() && !tmp_faces.is_empty() {
-                    models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal, &tmp_faces, mat_id), name));
+                    models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal,
+						                                &tmp_faces, mat_id), name));
                     tmp_faces.clear();
                 }
                 match words.next() {
@@ -477,8 +482,16 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                     };
                     match load_mtl(mat_file.as_path()) {
                         Ok((mats, map)) => {
-                            materials = mats;
-                            mat_map = map;
+							// Merge the loaded material lib with any currently loaded ones, offsetting
+							// the indices of the appended materials by our current length
+							let mat_offset = materials.len();
+							// TODO: Switch to append when it's stabilized, some more optimized functionality
+							// is coming for this. Alternatively, should I have a material loader that takes
+							// the map and such to append to?
+                            materials = materials + &mats[..];
+							for m in map {
+								mat_map.insert(m.0, m.1 + mat_offset);
+							}
                         },
                         Err(e) => return Err(e),
                     }
@@ -658,8 +671,8 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 				println!("    vt[{}] = ({}, {})", v, mesh.texcoords[2 * v], mesh.texcoords[2 * v + 1]);
 			}
         }
-        print_material_info(materials);
     }
+	print_material_info(materials);
 }
 
 /// Print out all loaded properties of some materials

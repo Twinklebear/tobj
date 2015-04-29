@@ -93,7 +93,6 @@ fn multiple_face_formats() {
 	assert!(tri.texcoords.is_empty());
 }
 
-/*
 #[test]
 fn test_cornell() {
     let m = tobj::load_obj(&Path::new("cornell_box.obj"));
@@ -101,5 +100,4 @@ fn test_cornell() {
     let (models, mats) = m.unwrap();
     tobj::print_model_info(&models, &mats);
 }
-*/
 
