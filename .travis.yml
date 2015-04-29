@@ -11,11 +11,10 @@ before_script:
 # TODO: Add benchmarks? Would require a large model file to test on, but could probably script
 # travis to download something from McGuire's meshes page
 script:
-    - |
-        tc cargo build &&
-        tc cargo test &&
-        tc cargo bench &&
-        tc cargo doc
+    - tc cargo build
+    - tc cargo test
+    - tc cargo bench
+    - tc cargo doc
 after_success:
     - git config user.name "Travis-CI Doc Bot"
     - git config user.email "willusher.life@gmail.com"
