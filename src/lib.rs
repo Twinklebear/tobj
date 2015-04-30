@@ -31,7 +31,7 @@
 //! 	}
 //! 
 //! 	// Normals and texture coordinates are also loaded, but not printed in this example
-//! 	println!("model[{}].vertices: {}", i, mesh.positions.len());
+//! 	println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
 //! 	assert!(mesh.positions.len() % 3 == 0);
 //! 	for v in 0..(mesh.positions.len() / 3) {
 //! 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
@@ -657,9 +657,9 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 				mesh.indices[3 * f + 2]);
         }
 
-        println!("model[{}].vertices: {}", i, mesh.positions.len());
-        println!("model[{}].normals: {}", i, mesh.normals.len());
-        println!("model[{}].texcoords: {}", i, mesh.texcoords.len());
+        println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
+        println!("model[{}].normals: {}", i, mesh.normals.len() / 3);
+        println!("model[{}].texcoords: {}", i, mesh.texcoords.len() / 2);
         assert!(mesh.positions.len() % 3 == 0);
         assert!(mesh.normals.len() % 3 == 0);
         assert!(mesh.texcoords.len() % 2 == 0);

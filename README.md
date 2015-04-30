@@ -45,7 +45,7 @@ for (i, m) in models.iter().enumerate() {
 	}
 
 	// Normals and texture coordinates are also loaded, but not printed in this example
-	println!("model[{}].vertices: {}", i, mesh.positions.len());
+	println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
 	assert!(mesh.positions.len() % 3 == 0);
 	for v in 0..(mesh.positions.len() / 3) {
 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
