@@ -67,7 +67,7 @@ use std::io::BufReader;
 use std::path::Path;
 use std::fs::File;
 use std::collections::HashMap;
-use std::str::{FromStr, Split};
+use std::str::{FromStr, SplitWhitespace};
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
@@ -274,17 +274,13 @@ enum Face {
 
 /// Parse the floatn information from the words, words is an iterator over the float strings
 /// Returns false if parsing failed
-fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
-        if p.is_empty() {
-            continue;
-        }
         if sz + n == vals.len() {
             return true;
         }
-        // This stupid trim is only needed b/c words isn't stable
-        match FromStr::from_str(p.trim()) {
+        match FromStr::from_str(p) {
             Ok(x) => vals.push(x),
             Err(_) => return false,
         }
@@ -294,10 +290,9 @@ fn parse_floatn(val_str: Split<char>, vals: &mut Vec<f32>, n: usize) -> bool {
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
-fn parse_float3(val_str: Split<char>, vals: &mut [f32; 3]) -> bool {
+fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
     for (i, p) in val_str.enumerate() {
-        // This trim is only needed b/c words isn't stable
-        match FromStr::from_str(p.trim()) {
+        match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
             Err(_) => return false,
         }
@@ -309,7 +304,7 @@ fn parse_float3(val_str: Split<char>, vals: &mut [f32; 3]) -> bool {
 /// Also handles relative face indices (negative values) which is why passing the number of
 /// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-fn parse_face(face_str: Split<char>, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
+fn parse_face(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
 		      norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
@@ -430,10 +425,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     // material used by the current object being parsed
     let mut mat_id = None;
     for line in reader.lines() {
-        // We just need the line for debugging for a bit
-        // TODO: Switch back to using `words` when it becomes stable
         let mut words = match line {
-            Ok(ref line) => line[..].trim().split(' '),
+            Ok(ref line) => line[..].split_whitespace(),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -516,8 +509,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                 }
             },
             // TODO: throw error on unrecognized character? Currently with split we get a newline
-            // and incorrectly through so this is off temporarily. Blocked until `words` becomes
-            // stable
+            // and incorrectly through so this is off temporarily.
             Some(_) => { /*return Err(LoadError::UnrecognizedCharacter) */ },
         }
     }
@@ -536,10 +528,8 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     // The current material being parsed
     let mut cur_mat = Material::empty();
     for line in reader.lines() {
-        // We just need the line for debugging for a bit
-        // TODO: Switch back to using `split_whitespace` when it gets onto the beta channel
         let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].trim().split(' ')),
+            Ok(ref line) => (&line[..], line[..].split_whitespace()),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -576,8 +566,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             },
             Some("Ns") => {
                 if let Some(p) = words.next() {
-                    // This trim is only needed b/c words isn't stable
-                    match FromStr::from_str(p.trim()) {
+                    match FromStr::from_str(p) {
                         Ok(x) => cur_mat.shininess = x,
                         Err(_) => return Err(LoadError::MaterialParseError),
                     }
@@ -587,8 +576,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             },
             Some("d") => {
                 if let Some(p) = words.next() {
-                    // This trim is only needed b/c words isn't stable
-                    match FromStr::from_str(p.trim()) {
+                    match FromStr::from_str(p) {
                         Ok(x) => cur_mat.dissolve = x,
                         Err(_) => return Err(LoadError::MaterialParseError),
                     }
