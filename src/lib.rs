@@ -424,7 +424,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     let mut tmp_normal = Vec::new();
     let mut tmp_faces: Vec<Face> = Vec::new();
     // name of the current object being parsed
-    let mut name = String::new();
+    let mut name = "unnamed_object".to_string();
     // material used by the current object being parsed
     let mut mat_id = None;
     for line in reader.lines() {
