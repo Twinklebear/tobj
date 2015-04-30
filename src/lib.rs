@@ -58,6 +58,9 @@
 //!
 
 #![allow(dead_code)]
+#![cfg_attr(all(test, feature = "unstable"), feature(test))]
+
+#[cfg(all(test, feature = "unstable"))] extern crate test;
 
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -692,6 +695,24 @@ pub fn print_material_info(materials: &Vec<Material>) {
         for (k, v) in &m.unknown_param {
             println!("    material.{} = {}", k, v);
         }
+    }
+}
+
+
+#[cfg(all(test, feature = "unstable"))]
+mod benches {
+    use test::Bencher;
+    use std::path::Path;
+    use super::load_obj;
+
+    #[bench]
+    fn bench_cornell(b: &mut Bencher) {
+        let path = Path::new("cornell_box.obj");
+        b.iter(|| {
+            let m = load_obj(&path);
+            assert!(m.is_ok());
+            m.is_ok()
+        });
     }
 }
 

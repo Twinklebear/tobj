@@ -1,15 +1,12 @@
 language: rust
-# TODO: Add nightly target when benchmarks are added
 rust:
+    - nightly
     - beta
 sudo: false
-# Load @huonw's travis-cargo script
 before_script:
     - git clone --depth 1 https://github.com/huonw/travis-cargo
       # make a short alias (`alias` itself doesn't work)
     - ln -s ./travis-cargo/travis-cargo.py tc
-# TODO: Add benchmarks? Would require a large model file to test on, but could probably script
-# travis to download something from McGuire's meshes page
 script:
     - ./tc cargo build
     - ./tc cargo test
@@ -24,3 +21,4 @@ after_success:
 env:
     global:
         secure: dtn9JgG7d2pFG/Y429JmXx4N8XsU5G6EQ7Jg2yQF6Xzq7m0jCReDVPjsIcukJqyHWiXAUUVKOpe2G86u9BRQbT6b/lPeCQxZRrEwtM1rJRqfrEJd1s4n1g7kK9H0u86IlvMXA5qEmPvyj5AcmTb+wPL4gqRxCl+hSEcSuPp7/ZQ=
+
