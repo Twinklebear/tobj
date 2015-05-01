@@ -79,6 +79,11 @@ Rendering Example
 For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer, check out
 [tobj viewer](https://github.com/Twinklebear/tobj_viewer). A sample image from the viewer is shown below, the Rust
 logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
+The [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml) model can be found on Morgan McGuire's meshes page and
+was original built by kescha. The Rungholt model is reasonably large (12.3M vertices and 6.7M triangles) and is loaded in
+8.765s (+/- .56s) using a peak of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM on tobj 0.0.5.
+Future work will focus on improving performance and memory usage.
 
 ![Rust Logo](http://i.imgur.com/uJbca2d.png)
+![Rungholt](http://i.imgur.com/k2sC05w.png)
 

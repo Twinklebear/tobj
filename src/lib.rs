@@ -691,7 +691,6 @@ pub fn print_material_info(materials: &Vec<Material>) {
     }
 }
 
-
 #[cfg(all(test, feature = "unstable"))]
 mod benches {
     use test::Bencher;
