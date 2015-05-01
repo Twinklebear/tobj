@@ -396,11 +396,12 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
                 add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
             },
             Face::Polygon(ref indices) => {
+                let a = &indices[0];
+                let mut c = &indices[1];
                 // TODO: Can we do something nicer with iterators here?
-                for i in 0..indices.len() - 3 {
-                    let a = &indices[i];
-                    let b = &indices[i + 1];
-                    let c = &indices[i + 2];
+                for i in 2..indices.len() - 1 {
+                    let b = c;
+                    c = &indices[i];
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
