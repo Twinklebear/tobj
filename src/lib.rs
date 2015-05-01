@@ -1,7 +1,7 @@
 //! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
 //! Aims to be a simple and lightweight option for loading OBJ files, simply returns two vecs
-//! containing loaded models and materials. All models are made of triangles, any quad faces in an
-//! OBJ file will be converted to two triangles.
+//! containing loaded models and materials. All models are made of triangles, any quad or polygon faces
+//! in an OBJ file will be converted to triangles.
 //!
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
