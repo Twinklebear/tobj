@@ -577,7 +577,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     materials.push(cur_mat);
                 }
                 cur_mat = Material::empty();
-                cur_mat.name = line[1..].trim().to_string();
+                cur_mat.name = line[6..].trim().to_string();
                 if cur_mat.name.is_empty() {
                     return Err(LoadError::InvalidObjectName);
                 }
