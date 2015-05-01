@@ -1,7 +1,9 @@
 //! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
 //! Aims to be a simple and lightweight option for loading OBJ files, simply returns two vecs
 //! containing loaded models and materials. All models are made of triangles, any quad or polygon faces
-//! in an OBJ file will be converted to triangles.
+//! in an OBJ file will be converted to triangles. Note that only polygons that are trivially
+//! convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
+//! The best solution would be to re-export your mesh using only triangles in your modeling software.
 //!
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
@@ -21,11 +23,11 @@
 //! println!("# of materials: {}", materials.len());
 //! for (i, m) in models.iter().enumerate() {
 //! 	let mesh = &m.mesh;
-//! 	println!("model[{}].name = {}", i, m.name);
+//! 	println!("model[{}].name = \'{}\'", i, m.name);
 //! 	println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 //! 
 //! 	println!("Size of model[{}].indices: {}", i, mesh.indices.len());
-//! 	for f in 0..(mesh.indices.len() / 3) {
+//! 	for f in 0..mesh.indices.len() / 3 {
 //! 		println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f],
 //! 			mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
 //! 	}
@@ -33,13 +35,13 @@
 //! 	// Normals and texture coordinates are also loaded, but not printed in this example
 //! 	println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
 //! 	assert!(mesh.positions.len() % 3 == 0);
-//! 	for v in 0..(mesh.positions.len() / 3) {
+//! 	for v in 0..mesh.positions.len() / 3 {
 //! 		println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
 //! 			mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
 //! 	}
 //! }
 //! for (i, m) in materials.iter().enumerate() {
-//! 	println!("material[{}].name = {}", i, m.name);
+//! 	println!("material[{}].name = \'{}\'", i, m.name);
 //! 	println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
 //! 	println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1], m.diffuse[2]);
 //! 	println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1], m.specular[2]);
@@ -673,7 +675,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 
         println!("Size of model[{}].indices: {}", i, mesh.indices.len());
-        for f in 0..(mesh.indices.len() / 3) {
+        for f in 0..mesh.indices.len() / 3 {
             println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f], mesh.indices[3 * f + 1],
 				mesh.indices[3 * f + 2]);
         }
@@ -684,8 +686,8 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
         assert!(mesh.positions.len() % 3 == 0);
         assert!(mesh.normals.len() % 3 == 0);
         assert!(mesh.texcoords.len() % 2 == 0);
-        for v in 0..(mesh.positions.len() / 3) {
-            println!("    v[{}]  = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1],
+        for v in 0..mesh.positions.len() / 3 {
+            println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1],
 				mesh.positions[3 * v + 2]);
 			if !mesh.normals.is_empty() {
 				println!("    vn[{}] = ({}, {}, {})", v, mesh.normals[3 * v], mesh.normals[3 * v + 1],
