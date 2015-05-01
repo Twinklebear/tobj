@@ -542,7 +542,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                 }
             },
             // Just ignore unrecognized characters
-            Some(_) => {}.
+            Some(_) => {},
         }
     }
     // For the last object in the file we won't encounter another object name to tell us when it's
