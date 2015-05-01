@@ -74,3 +74,11 @@ for (i, m) in materials.iter().enumerate() {
 }
 ```
 
+Rendering Example
+---
+For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer, check out
+[tobj viewer](https://github.com/Twinklebear/tobj_viewer). A sample image from the viewer is shown below, the Rust
+logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
+
+![Rust Logo](http://i.imgur.com/uJbca2d.png)
+
