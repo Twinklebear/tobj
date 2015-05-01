@@ -344,7 +344,7 @@ fn parse_face<'a, T: Iterator<Item = &'a str>>(face_str: T, faces: &mut Vec<Face
 /// or appending the position, texcoord and normal as appropriate and creating a new vertex
 fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert: &VertexIndices,
               pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>) {
-    match index_map.get(vert){
+    match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
 			let v = vert.v as usize;
