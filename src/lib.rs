@@ -283,7 +283,8 @@ impl VertexIndices {
 #[derive(Debug)]
 enum Face {
     Triangle(VertexIndices, VertexIndices, VertexIndices),
-    Quad(VertexIndices, VertexIndices, VertexIndices, VertexIndices)
+    Quad(VertexIndices, VertexIndices, VertexIndices, VertexIndices),
+    Polygon(Vec<VertexIndices>),
 }
 
 /// Parse the floatn information from the words, words is an iterator over the float strings
@@ -334,7 +335,7 @@ fn parse_face<'a, T: Iterator<Item = &'a str>>(face_str: T, faces: &mut Vec<Face
     match indices.len() {
         3 => faces.push(Face::Triangle(indices[0], indices[1], indices[2])),
         4 => faces.push(Face::Quad(indices[0], indices[1], indices[2], indices[3])),
-        _ => return false,
+        _ => faces.push(Face::Polygon(indices)),
     }
     true
 }
@@ -377,6 +378,8 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     mesh.material_id = mat_id;
     // TODO: When drain becomes stable we should use that, since we clear `faces` later anyway
     for f in faces {
+        // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
+        // length triangle fan
         match *f {
             Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
@@ -391,7 +394,19 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
-            }
+            },
+            Face::Polygon(ref indices) => {
+                let a = &indices[0];
+                let mut c = &indices[1];
+                // TODO: Can we do something nicer with iterators here?
+                for i in 2..indices.len() - 1 {
+                    let b = c;
+                    c = &indices[i];
+                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
+                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                }
+            },
         }
     }
     mesh
@@ -442,9 +457,9 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     // material used by the current object being parsed
     let mut mat_id = None;
     for line in reader.lines() {
-        let mut words = match line {
+        let (line, mut words) = match line {
             /// TODO: Switch to `split_whitespace` when it is release (1.1)
-            Ok(ref line) => line[..].split(char::is_whitespace).filter(|s| !s.is_empty()),
+            Ok(ref line) => (&line[..], line[..].split(char::is_whitespace).filter(|s| !s.is_empty())),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -483,9 +498,9 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
 						                                &tmp_faces, mat_id), name));
                     tmp_faces.clear();
                 }
-                match words.next() {
-                    Some(n) => name = n.to_string(),
-                    None => return Err(LoadError::InvalidObjectName),
+                name = line[1..].trim().to_string();
+                if name.is_empty() {
+                    return Err(LoadError::InvalidObjectName);
                 }
             },
             Some("mtllib") => {
@@ -526,9 +541,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                     return Err(LoadError::MaterialParseError);
                 }
             },
-            // TODO: throw error on unrecognized character? Currently with split we get a newline
-            // and incorrectly through so this is off temporarily.
-            Some(_) => { /*return Err(LoadError::UnrecognizedCharacter) */ },
+            // Just ignore unrecognized characters
+            Some(_) => {}.
         }
     }
     // For the last object in the file we won't encounter another object name to tell us when it's
@@ -563,9 +577,9 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     materials.push(cur_mat);
                 }
                 cur_mat = Material::empty();
-                match words.next() {
-                    Some(n) => cur_mat.name = n.to_string(),
-                    None => return Err(LoadError::InvalidObjectName),
+                cur_mat.name = line[1..].trim().to_string();
+                if cur_mat.name.is_empty() {
+                    return Err(LoadError::InvalidObjectName);
                 }
             },
             Some("Ka") => {
@@ -655,7 +669,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
     println!("# of materials: {}", materials.len());
     for (i, m) in models.iter().enumerate() {
         let mesh = &m.mesh;
-        println!("model[{}].name = {}", i, m.name);
+        println!("model[{}].name = \'{}\'", i, m.name);
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 
         println!("Size of model[{}].indices: {}", i, mesh.indices.len());
@@ -688,7 +702,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 /// Print out all loaded properties of some materials
 pub fn print_material_info(materials: &Vec<Material>) {
     for (i, m) in materials.iter().enumerate() {
-        println!("material[{}].name = {}", i, m.name);
+        println!("material[{}].name = \'{}\'", i, m.name);
         println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
         println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1], m.diffuse[2]);
         println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1], m.specular[2]);
