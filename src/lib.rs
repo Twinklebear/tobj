@@ -68,7 +68,7 @@
 //! The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
 //! was originally built by kescha. Future work will focus on improving performance and memory usage. 
 //!
-//! <img src="http://i.imgur.com/k2sC05w.png" alt="Rungholt"
+//! <img src="http://i.imgur.com/wImyNG4.png" alt="Rungholt"
 //!     style="display:block; max-width:100%; height:auto">
 
 #![allow(dead_code)]

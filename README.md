@@ -99,5 +99,5 @@ of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of 1600Mhz DD
 Future work will focus on improving performance and memory usage.
 
 ![Rust Logo](http://i.imgur.com/uJbca2d.png)
-![Rungholt](http://i.imgur.com/k2sC05w.png)
+![Rungholt](http://i.imgur.com/wImyNG4.png)
 
