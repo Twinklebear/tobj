@@ -65,7 +65,8 @@
 //!
 //! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M vertices) and is loaded in 8.765s (+/- .56s) using a peak
 //! of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM on rustc 1.1.0-nightly 97d4e76c2.
-//! Future work will focus on improving performance and memory usage.
+//! The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
+//! was originally built by kescha. Future work will focus on improving performance and memory usage. 
 //!
 //! <img src="http://i.imgur.com/k2sC05w.png" alt="Rungholt"
 //!     style="display:block; max-width:100%; height:auto">
