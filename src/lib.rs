@@ -60,18 +60,15 @@
 //! 
 //! # Rendering Example
 //! For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer, check out
-//! [tobj viewer](https://github.com/Twinklebear/tobj_viewer). A sample image from the viewer is shown below, the Rust
-//! logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
-//! The [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml) model can be found on Morgan McGuire's meshes page and
-//! was originally built by kescha.
-//! 
-//! The Rungholt model is reasonably large (6.7M triangles, 12.3M vertices) and is loaded in 8.765s (+/- .56s) using a peak
-//! of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM on tobj 0.0.5 and rustc 1.1.0-nightly 97d4e76c2.
-//! Future work will focus on improving performance and memory usage.
-//! 
-//! ![Rust Logo](http://i.imgur.com/uJbca2d.png)
+//! [tobj viewer](https://github.com/Twinklebear/tobj_viewer). Some sample images can be found in
+//! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v). 
 //!
-//! ![Rungholt](http://i.imgur.com/k2sC05w.png)
+//! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M vertices) and is loaded in 8.765s (+/- .56s) using a peak
+//! of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM on rustc 1.1.0-nightly 97d4e76c2.
+//! Future work will focus on improving performance and memory usage.
+//!
+//! <img src="http://i.imgur.com/k2sC05w.png" alt="Rungholt"
+//!     style="display:block; max-width:100%; height:auto">
 
 #![allow(dead_code)]
 #![cfg_attr(all(test, feature = "unstable"), feature(test))]
@@ -86,6 +83,13 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 /// A mesh made up of triangles loaded from some OBJ file
+///
+/// It is assumed that all meshes will at least have positions, but normals and texture coordinates
+/// are optional. If no normals or texture coordinates where found then the corresponding vecs for
+/// the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
+/// a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
+/// Indices are also loaded and may re-use vertices already existing in the mesh, this data is
+/// stored in the `indices` member.
 ///
 /// # Example:
 /// Load the Cornell box and get the attributes of the first vertex. It's assumed all meshes will
@@ -165,9 +169,9 @@ impl Model {
     }
 }
 
-
-/// A material that may be referenced by one or more meshes. Standard MTL attributes are supported
-/// and any unrecognized ones will be stored as Strings in the `unknown_param` HashMap
+/// A material that may be referenced by one or more meshes. Standard MTL attributes are supported.
+/// Any unrecognized parameters will be stored as key-value pairs in the `unknown_param` HashMap,
+/// which maps the unknown parameter to the value set for it.
 #[derive(Clone, Debug)]
 pub struct Material {
     /// Material name as specified in the MTL file
@@ -382,13 +386,13 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
         // length triangle fan
-        match *f {
-            Face::Triangle(ref a, ref b, ref c) => {
+        match f {
+            &Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
             },
-            Face::Quad(ref a, ref b, ref c, ref d) => {
+            &Face::Quad(ref a, ref b, ref c, ref d) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
@@ -397,7 +401,7 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
             },
-            Face::Polygon(ref indices) => {
+            &Face::Polygon(ref indices) => {
                 let a = &indices[0];
                 let mut c = &indices[1];
                 // TODO: Can we do something nicer with iterators here?

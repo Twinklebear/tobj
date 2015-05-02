@@ -7,6 +7,16 @@ OBJ file will be converted to triangles. Note that only polygons that are trivia
 convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
 The best solution would be to re-export your mesh using only triangles in your modeling software.
 
+It is assumed that all meshes will at least have positions, but normals and texture coordinates
+are optional. If no normals or texture coordinates where found then the corresponding vecs for
+the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
+a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
+Indices are also loaded and may re-use vertices already existing in the mesh, this data is
+stored in the `indices` member.
+
+Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
+HashMap containing the key-value pairs of the unrecognized parameter and its value.
+
 Documentation
 ---
 Rust doc can be found [here](http://www.willusher.io/tobj/tobj/).
