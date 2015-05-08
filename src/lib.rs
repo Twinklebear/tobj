@@ -1,9 +1,19 @@
 //! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
-//! Aims to be a simple and lightweight option for loading OBJ files, simply returns two vecs
+//! Aims to be a simple and lightweight option for loading OBJ files, just returns two vecs
 //! containing loaded models and materials. All models are made of triangles, any quad or polygon faces
 //! in an OBJ file will be converted to triangles. Note that only polygons that are trivially
 //! convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
 //! The best solution would be to re-export your mesh using only triangles in your modeling software.
+//!
+//! It is assumed that all meshes will at least have positions, but normals and texture coordinates
+//! are optional. If no normals or texture coordinates were found then the corresponding vecs for
+//! the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
+//! a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
+//! Indices are also loaded and may re-use vertices already existing in the mesh, this data is
+//! stored in the `indices` member.
+//! 
+//! Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
+//! HashMap containing the key-value pairs of the unrecognized parameter and its value.
 //!
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
