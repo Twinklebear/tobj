@@ -534,7 +534,9 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
 							// TODO: Switch to append when it's stabilized, some more optimized functionality
 							// is coming for this. Alternatively, should I have a material loader that takes
 							// the map and such to append to?
-                            materials = materials + &mats[..];
+                            for m in mats {
+                                materials.push(m);
+                            }
 							for m in map {
 								mat_map.insert(m.0, m.1 + mat_offset);
 							}
