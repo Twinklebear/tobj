@@ -340,7 +340,7 @@ fn parse_float3<'a, T: Iterator<Item = &'a str>>(val_str: T, vals: &mut [f32; 3]
 /// returns false if an error occured parsing the face
 /// TODO: Switch to `SplitWhitespace` when it is release (1.1)
 fn parse_face<'a, T: Iterator<Item = &'a str>>(face_str: T, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
-		      norm_sz: usize) -> bool {
+                                               norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
         match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
@@ -364,7 +364,7 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
-			let v = vert.v as usize;
+            let v = vert.v as usize;
             // Add the vertex to the mesh
             mesh.positions.push(pos[v * 3]);
             mesh.positions.push(pos[v * 3 + 1]);
@@ -502,7 +502,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
             Some("f") => {
                 if !parse_face(words, &mut tmp_faces, tmp_pos.len() / 3, tmp_texcoord.len() / 2,
 							   tmp_normal.len() / 3) {
-					return Err(LoadError::FaceParseError);
+                   return Err(LoadError::FaceParseError);
                 }
             },
             // Just treating object and group tags identically. Should there be different behavior
@@ -512,7 +512,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                 // signals the end of the current one, so push it onto our list of objects
                 if !name.is_empty() && !tmp_faces.is_empty() {
                     models.push(Model::new(export_faces(&tmp_pos, &tmp_texcoord, &tmp_normal,
-						                                &tmp_faces, mat_id), name));
+                                                        &tmp_faces, mat_id), name));
                     tmp_faces.clear();
                 }
                 name = line[1..].trim().to_string();
@@ -528,18 +528,18 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                     };
                     match load_mtl(mat_file.as_path()) {
                         Ok((mats, map)) => {
-							// Merge the loaded material lib with any currently loaded ones, offsetting
-							// the indices of the appended materials by our current length
-							let mat_offset = materials.len();
-							// TODO: Switch to append when it's stabilized, some more optimized functionality
-							// is coming for this. Alternatively, should I have a material loader that takes
-							// the map and such to append to?
+                            // Merge the loaded material lib with any currently loaded ones, offsetting
+                            // the indices of the appended materials by our current length
+                            let mat_offset = materials.len();
+                            // TODO: Switch to append when it's stabilized, some more optimized functionality
+                            // is coming for this. Alternatively, should I have a material loader that takes
+                            // the map and such to append to?
                             for m in mats {
                                 materials.push(m);
                             }
-							for m in map {
-								mat_map.insert(m.0, m.1 + mat_offset);
-							}
+                            for m in map {
+                                mat_map.insert(m.0, m.1 + mat_offset);
+                            }
                         },
                         Err(e) => return Err(e),
                     }
@@ -694,7 +694,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
         println!("Size of model[{}].indices: {}", i, mesh.indices.len());
         for f in 0..mesh.indices.len() / 3 {
             println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f], mesh.indices[3 * f + 1],
-				mesh.indices[3 * f + 2]);
+                     mesh.indices[3 * f + 2]);
         }
 
         println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
@@ -705,14 +705,14 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
         assert!(mesh.texcoords.len() % 2 == 0);
         for v in 0..mesh.positions.len() / 3 {
             println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v], mesh.positions[3 * v + 1],
-				mesh.positions[3 * v + 2]);
-			if !mesh.normals.is_empty() {
-				println!("    vn[{}] = ({}, {}, {})", v, mesh.normals[3 * v], mesh.normals[3 * v + 1],
-					mesh.normals[3 * v + 2]);
-			}
-			if !mesh.texcoords.is_empty() {
-				println!("    vt[{}] = ({}, {})", v, mesh.texcoords[2 * v], mesh.texcoords[2 * v + 1]);
-			}
+                    mesh.positions[3 * v + 2]);
+            if !mesh.normals.is_empty() {
+                println!("    vn[{}] = ({}, {}, {})", v, mesh.normals[3 * v], mesh.normals[3 * v + 1],
+                        mesh.normals[3 * v + 2]);
+            }
+            if !mesh.texcoords.is_empty() {
+                println!("    vt[{}] = ({}, {})", v, mesh.texcoords[2 * v], mesh.texcoords[2 * v + 1]);
+            }
         }
     }
 	print_material_info(materials);
