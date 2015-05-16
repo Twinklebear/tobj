@@ -85,7 +85,9 @@
 //! For an example of integration within a ray tracer, check out tray\_rust's
 //! [mesh module](https://github.com/Twinklebear/tray_rust/blob/master/src/geometry/mesh.rs).
 //! The Stanford Buddha and Dragon from the
-//! [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) both load very quickly.
+//! [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) both load quite quickly.
+//! The Rust logo model was made by
+//! [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
 //! The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 //!
 //! <img src="http://i.imgur.com/9QU6fOU.png" alt="Rungholt"
