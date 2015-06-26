@@ -104,7 +104,7 @@ use std::io::BufReader;
 use std::path::Path;
 use std::fs::File;
 use std::collections::HashMap;
-use std::str::FromStr;
+use std::str::{FromStr, SplitWhitespace};
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
@@ -319,8 +319,7 @@ enum Face {
 
 /// Parse the floatn information from the words, words is an iterator over the float strings
 /// Returns false if parsing failed
-/// TODO: Switch to SplitWhitespace when it is release (1.1)
-fn parse_floatn<'a, T: Iterator<Item = &'a str>>(val_str: T, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn<'a>(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
         if sz + n == vals.len() {
@@ -336,8 +335,7 @@ fn parse_floatn<'a, T: Iterator<Item = &'a str>>(val_str: T, vals: &mut Vec<f32>
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
-/// TODO: Switch to SplitWhitespace when it is release (1.1)
-fn parse_float3<'a, T: Iterator<Item = &'a str>>(val_str: T, vals: &mut [f32; 3]) -> bool {
+fn parse_float3<'a>(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
     for (i, p) in val_str.enumerate() {
         match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
@@ -351,9 +349,8 @@ fn parse_float3<'a, T: Iterator<Item = &'a str>>(val_str: T, vals: &mut [f32; 3]
 /// Also handles relative face indices (negative values) which is why passing the number of
 /// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-/// TODO: Switch to `SplitWhitespace` when it is release (1.1)
-fn parse_face<'a, T: Iterator<Item = &'a str>>(face_str: T, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
-                                               norm_sz: usize) -> bool {
+fn parse_face<'a>(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
+                  norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
         match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
@@ -488,8 +485,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     let mut mat_id = None;
     for line in reader.lines() {
         let (line, mut words) = match line {
-            /// TODO: Switch to `split_whitespace` when it is release (1.1)
-            Ok(ref line) => (&line[..], line[..].split(char::is_whitespace).filter(|s| !s.is_empty())),
+            Ok(ref line) => (&line[..], line[..].split_whitespace()),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
@@ -593,8 +589,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut cur_mat = Material::empty();
     for line in reader.lines() {
         let (line, mut words) = match line {
-            /// TODO: Switch to `split_whitespace` when it is release (1.1)
-            Ok(ref line) => (&line[..], line[..].split(char::is_whitespace).filter(|s| !s.is_empty())),
+            Ok(ref line) => (&line[..], line[..].split_whitespace()),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
