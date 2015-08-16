@@ -106,5 +106,5 @@ The Rust logo model was made by
 [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
 The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 
-[![Rust Logo with friends](http://i.imgur.com/9QU6fOU.png)](http://i.imgur.com/9QU6fOU.png)
+[![Rust Logo with friends]()http://i.imgur.com/aRnbeqV.jpg](http://i.imgur.com/aRnbeqV.png)
 
