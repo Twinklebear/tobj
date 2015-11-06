@@ -536,16 +536,11 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                         None => Path::new(mtllib).to_path_buf(),
                     };
                     match load_mtl(mat_file.as_path()) {
-                        Ok((mats, map)) => {
+                        Ok((mut mats, map)) => {
                             // Merge the loaded material lib with any currently loaded ones, offsetting
                             // the indices of the appended materials by our current length
                             let mat_offset = materials.len();
-                            // TODO: Switch to append when it's stabilized, some more optimized functionality
-                            // is coming for this. Alternatively, should I have a material loader that takes
-                            // the map and such to append to?
-                            for m in mats {
-                                materials.push(m);
-                            }
+                            materials.append(&mut mats);
                             for m in map {
                                 mat_map.insert(m.0, m.1 + mat_offset);
                             }
