@@ -403,7 +403,6 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
     mesh.material_id = mat_id;
-    // TODO: When drain becomes stable we should use that, since we clear `faces` later anyway
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
         // length triangle fan
@@ -425,7 +424,6 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
             &Face::Polygon(ref indices) => {
                 let a = &indices[0];
                 let mut c = &indices[1];
-                // TODO: Can we do something nicer with iterators here?
                 for i in 2..indices.len() - 1 {
                     let b = c;
                     c = &indices[i];
