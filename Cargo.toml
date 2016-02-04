@@ -17,6 +17,9 @@ exclude = [
 	".travis.yml",
 ]
 
+[dependencies]
+clippy = { version = "0.0.37", optional = true }
+
 [features]
-unstable = []
+unstable = ["clippy"]
 

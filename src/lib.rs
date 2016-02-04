@@ -96,6 +96,8 @@
 
 #![allow(dead_code)]
 #![cfg_attr(all(test, feature = "unstable"), feature(test))]
+#![cfg_attr(feature = "unstable", feature(plugin))]
+#![cfg_attr(feature = "unstable", plugin(clippy))]
 
 #[cfg(all(test, feature = "unstable"))] extern crate test;
 
