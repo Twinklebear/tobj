@@ -74,8 +74,8 @@
 //! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v). 
 //!
 //! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M vertices) and is loaded
-//! in 8.765s (+/- .56s) using a peak of ~1GB of memory on a Windows 8 machine with an i7-4790k and 16GB of
-//! 1600Mhz DDR3 RAM on rustc 1.1.0-nightly 97d4e76c2.
+//! in ~7.47s using a peak of ~1.1GB of memory on a Windows 10 machine with an i7-4790k and 16GB of
+//! 1600Mhz DDR3 RAM with tobj 0.1.1 on rustc 1.6.0.
 //! The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
 //! was originally built by kescha. Future work will focus on improving performance and memory usage. 
 //!
