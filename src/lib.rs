@@ -321,7 +321,7 @@ enum Face {
 
 /// Parse the floatn information from the words, words is an iterator over the float strings
 /// Returns false if parsing failed
-fn parse_floatn<'a>(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
         if sz + n == vals.len() {
@@ -337,7 +337,7 @@ fn parse_floatn<'a>(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> 
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
-fn parse_float3<'a>(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
+fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
     for (i, p) in val_str.enumerate() {
         match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
@@ -351,7 +351,7 @@ fn parse_float3<'a>(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
 /// Also handles relative face indices (negative values) which is why passing the number of
 /// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-fn parse_face<'a>(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
+fn parse_face(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usize, tex_sz: usize,
                   norm_sz: usize) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
@@ -372,7 +372,7 @@ fn parse_face<'a>(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usiz
 /// Add a vertex to a mesh by either re-using an existing index (eg. it's in the index_map)
 /// or appending the position, texcoord and normal as appropriate and creating a new vertex
 fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert: &VertexIndices,
-              pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>) {
+              pos: &[f32], texcoord: &[f32], normal: &[f32]) {
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
@@ -400,7 +400,7 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
 }
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
-fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &Vec<Face>,
+fn export_faces(pos: &[f32], texcoord: &[f32], normal: &[f32], faces: &[Face],
 				mat_id: Option<usize>) -> Mesh {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
@@ -408,13 +408,13 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
         // length triangle fan
-        match f {
-            &Face::Triangle(ref a, ref b, ref c) => {
+        match *f {
+            Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
             },
-            &Face::Quad(ref a, ref b, ref c, ref d) => {
+            Face::Quad(ref a, ref b, ref c, ref d) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
@@ -423,15 +423,14 @@ fn export_faces(pos: &Vec<f32>, texcoord: &Vec<f32>, normal: &Vec<f32>, faces: &
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
             },
-            &Face::Polygon(ref indices) => {
+            Face::Polygon(ref indices) => {
                 let a = &indices[0];
-                let mut c = &indices[1];
-                for i in 2..indices.len() - 1 {
-                    let b = c;
-                    c = &indices[i];
+                let mut b = &indices[1];
+                for c in indices.iter().skip(2) {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                    b = c;
                 }
             },
         }
@@ -480,7 +479,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
     let mut tmp_normal = Vec::new();
     let mut tmp_faces: Vec<Face> = Vec::new();
     // name of the current object being parsed
-    let mut name = "unnamed_object".to_string();
+    let mut name = "unnamed_object".to_owned();
     // material used by the current object being parsed
     let mut mat_id = None;
     for line in reader.lines() {
@@ -524,7 +523,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
                                                         &tmp_faces, mat_id), name));
                     tmp_faces.clear();
                 }
-                name = line[1..].trim().to_string();
+                name = line[1..].trim().to_owned();
                 if name.is_empty() {
                     return Err(LoadError::InvalidObjectName);
                 }
@@ -599,7 +598,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     materials.push(cur_mat);
                 }
                 cur_mat = Material::empty();
-                cur_mat.name = line[6..].trim().to_string();
+                cur_mat.name = line[6..].trim().to_owned();
                 if cur_mat.name.is_empty() {
                     return Err(LoadError::InvalidObjectName);
                 }
@@ -641,38 +640,38 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             },
             Some("map_Ka") => {
                 match words.next() {
-                    Some(tex) => cur_mat.ambient_texture = tex.to_string(),
+                    Some(tex) => cur_mat.ambient_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
                 }
             },
             Some("map_Kd") => {
                 match words.next() {
-                    Some(tex) => cur_mat.diffuse_texture = tex.to_string(),
+                    Some(tex) => cur_mat.diffuse_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
                 }
             },
             Some("map_Ks") => {
                 match words.next() {
-                    Some(tex) => cur_mat.specular_texture = tex.to_string(),
+                    Some(tex) => cur_mat.specular_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
                 }
             },
             Some("map_Ns") => {
                 match words.next() {
-                    Some(tex) => cur_mat.normal_texture = tex.to_string(),
+                    Some(tex) => cur_mat.normal_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
                 }
             },
             Some("map_d") => {
                 match words.next() {
-                    Some(tex) => cur_mat.dissolve_texture = tex.to_string(),
+                    Some(tex) => cur_mat.dissolve_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
                 }
             },
             Some(unknown) => {
                 if !unknown.is_empty() {
-                    let param = line[unknown.len()..].trim().to_string();
-                    cur_mat.unknown_param.insert(unknown.to_string(), param);
+                    let param = line[unknown.len()..].trim().to_owned();
+                    cur_mat.unknown_param.insert(unknown.to_owned(), param);
                 }
             },
         }
@@ -686,7 +685,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 }
 
 /// Print out all loaded properties of some models and associated materials
-pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
+pub fn print_model_info(models: &[Model], materials: &[Material]) {
     println!("# of models: {}", models.len());
     println!("# of materials: {}", materials.len());
     for (i, m) in models.iter().enumerate() {
@@ -722,7 +721,7 @@ pub fn print_model_info(models: &Vec<Model>, materials: &Vec<Material>) {
 }
 
 /// Print out all loaded properties of some materials
-pub fn print_material_info(materials: &Vec<Material>) {
+pub fn print_material_info(materials: &[Material]) {
     for (i, m) in materials.iter().enumerate() {
         println!("material[{}].name = \'{}\'", i, m.name);
         println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1], m.ambient[2]);
