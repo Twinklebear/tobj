@@ -1,6 +1,6 @@
 tobj - Tiny OBJ Loader
 ===
-Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
+A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
 Aims to be a simple and lightweight option for loading OBJ files, just returns two vecs
 containing loaded models and materials. All models are made of triangles, any quad or polygon faces in an
 OBJ file will be converted to triangles. Note that only polygons that are trivially
@@ -106,5 +106,5 @@ The Rust logo model was made by
 [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
 The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 
-[![Rust Logo with friends](http://i.imgur.com/Z34BleZ.jpg)](http://i.imgur.com/Z34BleZ.jpg)
+![Rust Logo with friends](http://i.imgur.com/E1ylrZW.png)
 
