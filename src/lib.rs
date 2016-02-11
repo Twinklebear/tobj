@@ -90,7 +90,7 @@
 //! [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
 //! The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 //!
-//! <img src="http://i.imgur.com/Z34BleZ.png" alt="Rust logo with friends"
+//! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
 //!     style="display:block; max-width:100%; height:auto">
 //!
 
