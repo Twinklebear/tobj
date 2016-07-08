@@ -13,7 +13,7 @@
 //! stored in the `indices` member.
 //! 
 //! Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
-//! HashMap containing the key-value pairs of the unrecognized parameter and its value.
+//! `HashMap` containing the key-value pairs of the unrecognized parameter and its value.
 //!
 //! # Example
 //! In this simple example we load the classic Cornell Box model that only defines positions and
@@ -196,7 +196,7 @@ impl Model {
 }
 
 /// A material that may be referenced by one or more meshes. Standard MTL attributes are supported.
-/// Any unrecognized parameters will be stored as key-value pairs in the `unknown_param` HashMap,
+/// Any unrecognized parameters will be stored as key-value pairs in the `unknown_param` `HashMap`,
 /// which maps the unknown parameter to the value set for it.
 #[derive(Clone, Debug)]
 pub struct Material {
@@ -258,11 +258,11 @@ pub enum LoadError {
     GenericFailure,
 }
 
-/// LoadResult is a result containing all the models loaded from the file and any materials from
+/// `LoadResult` is a result containing all the models loaded from the file and any materials from
 /// referenced material libraries, or an error that occured while loading
 pub type LoadResult = Result<(Vec<Model>, Vec<Material>), LoadError>;
 
-/// MTLLoadResult is a result containing all the materials loaded from the file and a map of MTL
+/// `MTLLoadResult` is a result containing all the materials loaded from the file and a map of MTL
 /// name to index or the error that occured while loading
 pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadError>;
 
@@ -369,7 +369,7 @@ fn parse_face(face_str: SplitWhitespace, faces: &mut Vec<Face>, pos_sz: usize, t
     true
 }
 
-/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the index_map)
+/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the `index_map`)
 /// or appending the position, texcoord and normal as appropriate and creating a new vertex
 fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert: &VertexIndices,
               pos: &[f32], texcoord: &[f32], normal: &[f32]) {
