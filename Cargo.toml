@@ -18,7 +18,7 @@ exclude = [
 ]
 
 [dependencies]
-clippy = { version = "0.0.37", optional = true }
+clippy = { version = "0.0.78", optional = true }
 
 [features]
 unstable = ["clippy"]

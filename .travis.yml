@@ -3,6 +3,9 @@ rust:
     - stable
     - beta
     - nightly
+matrix:
+    allow_failures:
+        - rust: nightly
 sudo: false
 before_script:
     - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
@@ -14,8 +17,6 @@ script:
 after_success:
     - git config user.name "Travis-CI Doc Bot"
     - git config user.email "willusher.life@gmail.com"
-      # upload the documentation from the build with beta (automatically only actually
-      # runs on the master branch)
     - travis-cargo --only stable doc-upload
 env:
     global:
