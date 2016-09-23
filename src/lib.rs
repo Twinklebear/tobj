@@ -11,7 +11,7 @@
 //! a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
 //! Indices are also loaded and may re-use vertices already existing in the mesh, this data is
 //! stored in the `indices` member.
-//! 
+//!
 //! Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
 //! `HashMap` containing the key-value pairs of the unrecognized parameter and its value.
 //!
@@ -20,7 +20,7 @@
 //! print out its attributes. This example is a slightly trimmed down version of `print_model_info`
 //! and `print_material_info` combined together, see them for a version that also prints out
 //! normals and texture coordinates if the model has them.
-//! 
+//!
 //! ```
 //! use std::path::Path;
 //! use tobj;
@@ -35,13 +35,13 @@
 //! 	let mesh = &m.mesh;
 //! 	println!("model[{}].name = \'{}\'", i, m.name);
 //! 	println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
-//! 
+//!
 //! 	println!("Size of model[{}].indices: {}", i, mesh.indices.len());
 //! 	for f in 0..mesh.indices.len() / 3 {
 //! 		println!("    idx[{}] = {}, {}, {}.", f, mesh.indices[3 * f],
 //! 			mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
 //! 	}
-//! 
+//!
 //! 	// Normals and texture coordinates are also loaded, but not printed in this example
 //! 	println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
 //! 	assert!(mesh.positions.len() % 3 == 0);
@@ -67,17 +67,17 @@
 //! 	}
 //! }
 //! ```
-//! 
+//!
 //! # Rendering Examples
 //! For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer,
 //! check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer). Some sample images can be found in
-//! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v). 
+//! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v).
 //!
 //! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M vertices) and is loaded
 //! in ~7.47s using a peak of ~1.1GB of memory on a Windows 10 machine with an i7-4790k and 16GB of
 //! 1600Mhz DDR3 RAM with tobj 0.1.1 on rustc 1.6.0.
 //! The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
-//! was originally built by kescha. Future work will focus on improving performance and memory usage. 
+//! was originally built by kescha. Future work will focus on improving performance and memory usage.
 //!
 //! <img src="http://i.imgur.com/wImyNG4.png" alt="Rungholt"
 //!     style="display:block; max-width:100%; height:auto">
@@ -87,7 +87,7 @@
 //! The Stanford Buddha and Dragon from the
 //! [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) both load quite quickly.
 //! The Rust logo model was made by
-//! [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
+//! [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
 //! The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 //!
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
@@ -107,6 +107,8 @@ use std::path::Path;
 use std::fs::File;
 use std::collections::HashMap;
 use std::str::{FromStr, SplitWhitespace};
+use std::fmt;
+use std::error::Error;
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
@@ -257,6 +259,40 @@ pub enum LoadError {
     InvalidObjectName,
     GenericFailure,
 }
+
+impl fmt::Display for LoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        f.write_str(self.description())
+    }
+}
+
+impl Error for LoadError {
+    fn description(&self) -> &str {
+        match self {
+            &LoadError::OpenFileFailed =>
+                "open file failed",
+            &LoadError::ReadError =>
+                "read error",
+            &LoadError::UnrecognizedCharacter =>
+                "unrecognized character",
+            &LoadError::PositionParseError =>
+                "position parse error",
+            &LoadError::NormalParseError =>
+                "normal parse error",
+            &LoadError::TexcoordParseError =>
+                "texcoord parse error",
+            &LoadError::FaceParseError =>
+                "face parse error",
+            &LoadError::MaterialParseError =>
+                "material parse error",
+            &LoadError::InvalidObjectName =>
+                "invalid object name",
+            &LoadError::GenericFailure =>
+                "generic failure",
+        }
+    }
+}
+
 
 /// `LoadResult` is a result containing all the models loaded from the file and any materials from
 /// referenced material libraries, or an error that occured while loading
@@ -756,4 +792,3 @@ mod benches {
         });
     }
 }
-
