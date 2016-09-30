@@ -170,7 +170,7 @@ pub struct Mesh {
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
     pub fn new(pos: Vec<f32>, norm: Vec<f32>, tex: Vec<f32>, indices: Vec<u32>, material_id: Option<usize>)
-		-> Mesh {
+        -> Mesh {
         Mesh { positions: pos, normals: norm, texcoords: tex, indices: indices, material_id: material_id }
     }
     /// Create a new empty mesh
@@ -268,26 +268,26 @@ impl fmt::Display for LoadError {
 
 impl Error for LoadError {
     fn description(&self) -> &str {
-        match self {
-            &LoadError::OpenFileFailed =>
+        match *self {
+            LoadError::OpenFileFailed =>
                 "open file failed",
-            &LoadError::ReadError =>
+            LoadError::ReadError =>
                 "read error",
-            &LoadError::UnrecognizedCharacter =>
+            LoadError::UnrecognizedCharacter =>
                 "unrecognized character",
-            &LoadError::PositionParseError =>
+            LoadError::PositionParseError =>
                 "position parse error",
-            &LoadError::NormalParseError =>
+            LoadError::NormalParseError =>
                 "normal parse error",
-            &LoadError::TexcoordParseError =>
+            LoadError::TexcoordParseError =>
                 "texcoord parse error",
-            &LoadError::FaceParseError =>
+            LoadError::FaceParseError =>
                 "face parse error",
-            &LoadError::MaterialParseError =>
+            LoadError::MaterialParseError =>
                 "material parse error",
-            &LoadError::InvalidObjectName =>
+            LoadError::InvalidObjectName =>
                 "invalid object name",
-            &LoadError::GenericFailure =>
+            LoadError::GenericFailure =>
                 "generic failure",
         }
     }
@@ -418,12 +418,12 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
             mesh.positions.push(pos[v * 3 + 1]);
             mesh.positions.push(pos[v * 3 + 2]);
             if !texcoord.is_empty() && vert.vt > -1 {
-				let vt = vert.vt as usize;
+                let vt = vert.vt as usize;
                 mesh.texcoords.push(texcoord[vt * 2]);
                 mesh.texcoords.push(texcoord[vt * 2 + 1]);
             }
             if !normal.is_empty() && vert.vn > -1 {
-				let vn = vert.vn as usize;
+                let vn = vert.vn as usize;
                 mesh.normals.push(normal[vn * 3]);
                 mesh.normals.push(normal[vn * 3 + 1]);
                 mesh.normals.push(normal[vn * 3 + 2]);
@@ -437,7 +437,7 @@ fn add_vertex(mesh: &mut Mesh, index_map: &mut HashMap<VertexIndices, u32>, vert
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
 fn export_faces(pos: &[f32], texcoord: &[f32], normal: &[f32], faces: &[Face],
-				mat_id: Option<usize>) -> Mesh {
+                mat_id: Option<usize>) -> Mesh {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
     mesh.material_id = mat_id;
@@ -489,7 +489,7 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
 }
 
 /// Load the materials defined in a MTL file
-/// Returns a pair with a Vec holding all loaded materials and a HashMap containing a mapping of
+/// Returns a pair with a `Vec` holding all loaded materials and a `HashMap` containing a mapping of
 /// material names to indices in the Vec.
 pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
     let file = match File::open(file_name) {
@@ -545,7 +545,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
             },
             Some("f") => {
                 if !parse_face(words, &mut tmp_faces, tmp_pos.len() / 3, tmp_texcoord.len() / 2,
-							   tmp_normal.len() / 3) {
+                               tmp_normal.len() / 3) {
                    return Err(LoadError::FaceParseError);
                 }
             },
@@ -753,7 +753,7 @@ pub fn print_model_info(models: &[Model], materials: &[Material]) {
             }
         }
     }
-	print_material_info(materials);
+    print_material_info(materials);
 }
 
 /// Print out all loaded properties of some materials
@@ -786,7 +786,7 @@ mod benches {
     fn bench_cornell(b: &mut Bencher) {
         let path = Path::new("cornell_box.obj");
         b.iter(|| {
-            let m = load_obj(&path);
+            let m = load_obj(path);
             assert!(m.is_ok());
             m.is_ok()
         });
