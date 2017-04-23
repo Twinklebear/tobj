@@ -215,6 +215,10 @@ pub struct Material {
     /// Dissolve attribute is the alpha term for the material. Referred to as dissolve since that's
     /// what the MTL file format docs refer to it as
     pub dissolve: f32,
+    /// Optical density also known as index of refraction. Called optical_density in the MTL specc.
+    /// Takes on a value between 0.001 and 10.0. 1.0 means light does not bend as it passed through
+    /// the object.
+    pub optical_density: f32,
     /// Name of the ambient texture file for the material. No path is pre-pended to the texture
     /// file names specified in the MTL file
     pub ambient_texture: String,
@@ -238,7 +242,7 @@ pub struct Material {
 impl Material {
     pub fn empty() -> Material {
         Material { name: String::new(), ambient: [0.0; 3], diffuse: [0.0; 3], specular: [0.0; 3],
-                   shininess: 0.0, dissolve: 1.0, ambient_texture: String::new(),
+                   shininess: 0.0, dissolve: 1.0, optical_density: 1.0, ambient_texture: String::new(),
                    diffuse_texture: String::new(), specular_texture: String::new(),
                    normal_texture: String::new(), dissolve_texture: String::new(),
                    unknown_param: HashMap::new() }
@@ -658,6 +662,16 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                 if let Some(p) = words.next() {
                     match FromStr::from_str(p) {
                         Ok(x) => cur_mat.shininess = x,
+                        Err(_) => return Err(LoadError::MaterialParseError),
+                    }
+                } else {
+                    return Err(LoadError::MaterialParseError);
+                }
+            },
+            Some("Ni") => {
+                if let Some(p) = words.next() {
+                    match FromStr::from_str(p) {
+                        Ok(x) => cur_mat.optical_density = x,
                         Err(_) => return Err(LoadError::MaterialParseError),
                     }
                 } else {

@@ -9,6 +9,7 @@ newmtl light
 Ka 20 20 20
 Kd 1 1 1
 Ks 0 0 0
+Ni 1.25
 d 0.8
 
 newmtl green

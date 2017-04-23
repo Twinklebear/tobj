@@ -306,6 +306,7 @@ fn test_cornell() {
 	assert_eq!(mat.diffuse, [1.0, 1.0, 1.0]);
 	assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
 	assert_eq!(mat.dissolve, 0.8);
+	assert_eq!(mat.optical_density, 1.25);
 
 	// Verify green material loaded properly
 	assert_eq!(mats[4].name, "green");
