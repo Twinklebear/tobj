@@ -811,9 +811,9 @@ pub fn print_model_info(models: &[Model], materials: &[Material]) {
         println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
         println!("model[{}].normals: {}", i, mesh.normals.len() / 3);
         println!("model[{}].texcoords: {}", i, mesh.texcoords.len() / 2);
-        assert!(mesh.positions.len() % 3 == 0);
-        assert!(mesh.normals.len() % 3 == 0);
-        assert!(mesh.texcoords.len() % 2 == 0);
+        assert_eq!(mesh.positions.len() % 3, 0);
+        assert_eq!(mesh.normals.len() % 3, 0);
+        assert_eq!(mesh.texcoords.len() % 2, 0);
         for v in 0..mesh.positions.len() / 3 {
             println!("    v[{}] = ({}, {}, {})",
                      v,
