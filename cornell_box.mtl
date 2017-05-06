@@ -1,7 +1,8 @@
 newmtl white
-Ka 0 0 0
-Kd 1 1 1
-Ks 0 0 0
+    Ka 0 0 0
+    Kd 1 1 1
+    Ks 0 0 0
+    Ke 1 1 1
 
 newmtl red
 Ka 0 0 0

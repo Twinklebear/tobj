@@ -679,7 +679,7 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut cur_mat = Material::empty();
     for line in reader.lines() {
         let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].split_whitespace()),
+            Ok(ref line) => (line.trim(), line[..].split_whitespace()),
             Err(e) => {
                 println!("tobj::load_obj - failed to read line due to {}", e);
                 return Err(LoadError::ReadError);
