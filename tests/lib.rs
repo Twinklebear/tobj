@@ -180,6 +180,7 @@ fn test_cornell() {
     assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
     assert_eq!(mat.diffuse, [1.0, 1.0, 1.0]);
     assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_eq!(mat.unknown_param.get("Ke").map(|s| s.as_ref()), Some("1 1 1"));
 
     // Verify red material loaded properly
     assert_eq!(mats[1].name, "red");
