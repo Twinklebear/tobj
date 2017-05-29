@@ -254,6 +254,9 @@ pub struct Material {
     /// file names specified in the MTL file. Referred to as dissolve to match the MTL file format
     /// specification
     pub dissolve_texture: String,
+    /// The illumnination model to use for this material. The different illumnination models are
+    /// specified in http://paulbourke.net/dataformats/mtl/
+    pub illumination_model: Option<u8>,
     /// Key value pairs of any unrecognized parameters encountered while parsing the material
     pub unknown_param: HashMap<String, String>,
 }
@@ -273,6 +276,7 @@ impl Material {
             specular_texture: String::new(),
             normal_texture: String::new(),
             dissolve_texture: String::new(),
+            illumination_model: None,
             unknown_param: HashMap::new(),
         }
     }
@@ -772,6 +776,16 @@ fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                 match words.next() {
                     Some(tex) => cur_mat.dissolve_texture = tex.to_owned(),
                     None => return Err(LoadError::MaterialParseError),
+                }
+            }
+            Some("illum") => {
+                if let Some(p) = words.next() {
+                    match FromStr::from_str(p) {
+                        Ok(x) => cur_mat.illumination_model = Some(x),
+                        Err(_) => return Err(LoadError::MaterialParseError),
+                    }
+                } else {
+                    return Err(LoadError::MaterialParseError);
                 }
             }
             Some(unknown) => {
