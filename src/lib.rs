@@ -555,7 +555,7 @@ pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
 
 /// Load the various meshes in an OBJ buffer. `base_path` specifies the path prefix to apply to
 /// referenced material libs
-fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadResult {
+pub fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadResult {
     let mut models = Vec::new();
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
@@ -676,7 +676,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
 }
 
 /// Load the various materials in a MTL buffer
-fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
+pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
     // The current material being parsed
