@@ -71,14 +71,7 @@ fn multiple_face_formats() {
     assert!(tri.texcoords.is_empty());
 }
 
-#[test]
-fn test_cornell() {
-    let m = tobj::load_obj(&Path::new("cornell_box.obj"));
-    assert!(m.is_ok());
-    let (models, mats) = m.unwrap();
-    assert_eq!(models.len(), 8);
-    assert_eq!(mats.len(), 5);
-
+fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify the floor loaded properly
     assert_eq!(models[0].name, "floor");
     let mesh = &models[0].mesh;
@@ -231,6 +224,16 @@ fn test_cornell() {
 }
 
 #[test]
+fn test_cornell() {
+    let m = tobj::load_obj(&Path::new("cornell_box.obj"));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    assert_eq!(models.len(), 8);
+    assert_eq!(mats.len(), 5);
+    validate_cornell(models, mats);
+}
+
+#[test]
 fn test_custom_material_loader() {
     let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), |p| {
         match p.to_str().unwrap() {
@@ -239,5 +242,10 @@ fn test_custom_material_loader() {
             _ => unreachable!(),
         }
     });
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    assert_eq!(models.len(), 8);
+    assert_eq!(mats.len(), 5);
+    validate_cornell(models, mats);
 }
 
