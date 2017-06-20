@@ -561,12 +561,35 @@ pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
     load_mtl_buf(&mut reader)
 }
 
-/// Load the various meshes in an OBJ buffer.
+/// Load the various meshes in an OBJ buffer of some kind, e.g. a
+/// network stream, text file already in memory or so on.
 ///
-/// You must pass a "material loader", which will return a material given a name.
-/// A trivial material loader may just look at the file name and then call `load_mtl_buf`
-/// with the in-memory `.mtl` file source.
-pub fn load_obj_buf<B,ML>(reader: &mut B, material_loader: ML) -> LoadResult
+/// You must pass a "material loader" function, which will return a material
+/// given a name. A trivial material loader may just look at the file
+/// name and then call `load_mtl_buf` with the in-memory MTL file source.
+/// Alternatively it could pass an MTL file in memory to `load_mtl_buf` to
+/// parse materials from some buffer.
+///
+/// # Example
+/// The test for `load_obj_buf` includes the OBJ and MTL files as strings
+/// and uses a `Cursor` to provide a `BufRead` interface on the buffer.
+///
+/// ```
+/// use std::io::Cursor;
+///
+/// const CORNELL_BOX_OBJ: &'static str = include_str!("cornell_box.obj");
+/// const CORNELL_BOX_MTL1: &'static str = include_str!("cornell_box.mtl");
+/// const CORNELL_BOX_MTL2: &'static str = include_str!("cornell_box2.mtl");
+///
+/// let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), |p| {
+///     match p.to_str().unwrap() {
+///         "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
+///         "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+///         _ => unreachable!(),
+///     }
+/// });
+/// ```
+pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
         where B: BufRead, ML: Fn(&Path) -> MTLLoadResult {
     let mut models = Vec::new();
     let mut materials = Vec::new();
