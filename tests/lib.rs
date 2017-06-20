@@ -1,6 +1,11 @@
 extern crate tobj;
 
+use std::io::Cursor;
 use std::path::Path;
+
+const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
+const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
+const CORNELL_BOX_MTL2: &'static str = include_str!("../cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
@@ -224,3 +229,15 @@ fn test_cornell() {
     assert_eq!(mat.normal_texture, "dummy_texture.png");
     assert_eq!(mat.dissolve_texture, "dummy_texture.png");
 }
+
+#[test]
+fn test_custom_material_loader() {
+    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), |p| {
+        match p.to_str().unwrap() {
+            "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
+            "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+            _ => unreachable!(),
+        }
+    });
+}
+

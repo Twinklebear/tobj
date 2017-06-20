@@ -533,7 +533,15 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
         }
     };
     let mut reader = BufReader::new(file);
-    load_obj_buf(&mut reader, file_name.parent())
+    load_obj_buf(&mut reader, |mat_path| {
+        let full_path = if let Some(parent) = file_name.parent() {
+            parent.join(mat_path)
+        } else {
+            mat_path.to_owned()
+        };
+
+        self::load_mtl(&full_path)
+    })
 }
 
 /// Load the materials defined in a MTL file
@@ -553,9 +561,13 @@ pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
     load_mtl_buf(&mut reader)
 }
 
-/// Load the various meshes in an OBJ buffer. `base_path` specifies the path prefix to apply to
-/// referenced material libs
-fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadResult {
+/// Load the various meshes in an OBJ buffer.
+///
+/// You must pass a "material loader", which will return a material given a name.
+/// A trivial material loader may just look at the file name and then call `load_mtl_buf`
+/// with the in-memory `.mtl` file source.
+pub fn load_obj_buf<B,ML>(reader: &mut B, material_loader: ML) -> LoadResult
+        where B: BufRead, ML: Fn(&Path) -> MTLLoadResult {
     let mut models = Vec::new();
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
@@ -623,11 +635,8 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
             }
             Some("mtllib") => {
                 if let Some(mtllib) = words.next() {
-                    let mat_file = match base_path {
-                        Some(bp) => bp.join(mtllib),
-                        None => Path::new(mtllib).to_path_buf(),
-                    };
-                    match load_mtl(mat_file.as_path()) {
+                    let mat_file = Path::new(mtllib).to_path_buf();
+                    match material_loader(mat_file.as_path()) {
                         Ok((mut mats, map)) => {
                             // Merge the loaded material lib with any currently loaded ones, offsetting
                             // the indices of the appended materials by our current length
@@ -676,7 +685,7 @@ fn load_obj_buf<B: BufRead>(reader: &mut B, base_path: Option<&Path>) -> LoadRes
 }
 
 /// Load the various materials in a MTL buffer
-fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
+pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
     // The current material being parsed
