@@ -1,0 +1,24 @@
+newmtl blue
+Ka 0 0 0
+Kd 0 0 1
+Ks 0 0 0
+Ns 10
+crazy_unknown Wierd stuff here
+
+newmtl light
+Ka 20 20 20
+Kd 1 1 1
+Ks 0 0 0
+Ni 1.25
+d 0.8
+
+newmtl green
+Ka 0 0 0
+Kd 0 1 0
+Ks 0 0 0
+map_Ka dummy_texture.png
+map_Kd dummy_texture.png
+map_Ks dummy_texture.png
+map_Ns dummy_texture.png
+map_d dummy_texture.png
+
