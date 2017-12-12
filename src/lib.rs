@@ -575,16 +575,31 @@ pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
 /// and uses a `Cursor` to provide a `BufRead` interface on the buffer.
 ///
 /// ```
-/// use std::io::Cursor;
+/// use std::env;
+/// use std::fs::File;
+/// use std::io::BufReader;
 ///
-/// const CORNELL_BOX_OBJ: &'static str = include_str!("cornell_box.obj");
-/// const CORNELL_BOX_MTL1: &'static str = include_str!("cornell_box.mtl");
-/// const CORNELL_BOX_MTL2: &'static str = include_str!("cornell_box2.mtl");
+/// let dir = env::current_dir().unwrap();
+/// let mut cornell_box_obj = dir.clone();
+/// cornell_box_obj.push("cornell_box.obj");
+/// let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 ///
-/// let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), |p| {
-///     match p.to_str().unwrap() {
-///         "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
-///         "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+/// let mut cornell_box_mtl1 = dir.clone();
+/// cornell_box_mtl1.push("cornell_box.mtl");
+///
+/// let mut cornell_box_mtl2 = dir.clone();
+/// cornell_box_mtl2.push("cornell_box2.mtl");
+///
+/// let m = tobj::load_obj_buf(&mut cornell_box_file, |p| {
+///     match p.file_name().unwrap().to_str().unwrap() {
+///         "cornell_box.mtl" => {
+///             let f = File::open(cornell_box_mtl1.as_path()).unwrap();
+///             tobj::load_mtl_buf(&mut BufReader::new(f))
+///         },
+///         "cornell_box2.mtl" => {
+///             let f = File::open(cornell_box_mtl2.as_path()).unwrap();
+///             tobj::load_mtl_buf(&mut BufReader::new(f))
+///         },
 ///         _ => unreachable!(),
 ///     }
 /// });
