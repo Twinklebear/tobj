@@ -2,6 +2,9 @@ extern crate tobj;
 
 use std::io::Cursor;
 use std::path::Path;
+use std::env;
+use std::fs::File;
+use std::io::BufReader;
 
 const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
 const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
@@ -239,6 +242,39 @@ fn test_custom_material_loader() {
         match p.to_str().unwrap() {
             "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
             "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+            _ => unreachable!(),
+        }
+    });
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    assert_eq!(models.len(), 8);
+    assert_eq!(mats.len(), 5);
+    validate_cornell(models, mats);
+}
+
+#[test]
+fn test_custom_material_loader_files() {
+    let dir = env::current_dir().unwrap();
+    let mut cornell_box_obj = dir.clone();
+    cornell_box_obj.push("cornell_box.obj");
+    let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
+
+    let mut cornell_box_mtl1 = dir.clone();
+    cornell_box_mtl1.push("cornell_box.mtl");
+
+    let mut cornell_box_mtl2 = dir.clone();
+    cornell_box_mtl2.push("cornell_box2.mtl");
+
+    let m = tobj::load_obj_buf(&mut cornell_box_file, |p| {
+        match p.file_name().unwrap().to_str().unwrap() {
+            "cornell_box.mtl" => {
+                let f = File::open(cornell_box_mtl1.as_path()).unwrap();
+                tobj::load_mtl_buf(&mut BufReader::new(f))
+            },
+            "cornell_box2.mtl" => {
+                let f = File::open(cornell_box_mtl2.as_path()).unwrap();
+                tobj::load_mtl_buf(&mut BufReader::new(f))
+            },
             _ => unreachable!(),
         }
     });
