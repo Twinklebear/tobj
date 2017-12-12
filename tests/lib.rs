@@ -6,9 +6,9 @@ use std::env;
 use std::fs::File;
 use std::io::BufReader;
 
-const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
-const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
-const CORNELL_BOX_MTL2: &'static str = include_str!("../cornell_box2.mtl");
+const CORNELL_BOX_OBJ: &'static str = include_str!("cornell_box.obj");
+const CORNELL_BOX_MTL1: &'static str = include_str!("cornell_box.mtl");
+const CORNELL_BOX_MTL2: &'static str = include_str!("cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
