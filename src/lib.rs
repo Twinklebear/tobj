@@ -692,6 +692,17 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
             }
             Some("usemtl") => {
                 if let Some(mat_name) = words.next() {
+                    // As materials are returned per-model, a new material within an object
+                    // has to emit a new model with the same name but different material
+                    if !tmp_faces.is_empty() {
+                        models.push(Model::new(export_faces(&tmp_pos,
+                                                            &tmp_texcoord,
+                                                            &tmp_normal,
+                                                            &tmp_faces,
+                                                            mat_id),
+                                            name.clone()));
+                        tmp_faces.clear();
+                    }
                     match mat_map.get(mat_name) {
                         Some(m) => mat_id = Some(*m),
                         None => {
