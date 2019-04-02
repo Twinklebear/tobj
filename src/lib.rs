@@ -692,9 +692,10 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
             }
             Some("usemtl") => {
                 if let Some(mat_name) = words.next() {
+                    let new_mat = mat_map.get(mat_name).cloned();
                     // As materials are returned per-model, a new material within an object
                     // has to emit a new model with the same name but different material
-                    if !tmp_faces.is_empty() {
+                    if mat_id != new_mat && !tmp_faces.is_empty() {
                         models.push(Model::new(export_faces(&tmp_pos,
                                                             &tmp_texcoord,
                                                             &tmp_normal,
@@ -703,15 +704,12 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                             name.clone()));
                         tmp_faces.clear();
                     }
-                    match mat_map.get(mat_name) {
-                        Some(m) => mat_id = Some(*m),
-                        None => {
-                            mat_id = None;
-                            println!("Warning: Object {} refers to unfound material: {}",
-                                     name,
-                                     mat_name);
-                        }
+                    if new_mat.is_none() {
+                        println!("Warning: Object {} refers to unfound material: {}",
+                                        name,
+                                        mat_name);
                     }
+                    mat_id = new_mat;
                 } else {
                     return Err(LoadError::MaterialParseError);
                 }
