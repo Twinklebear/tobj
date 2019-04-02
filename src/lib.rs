@@ -170,18 +170,18 @@ pub struct Mesh {
 
 impl Mesh {
     /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(pos: Vec<f32>,
-               norm: Vec<f32>,
-               tex: Vec<f32>,
+    pub fn new(positions: Vec<f32>,
+               normals: Vec<f32>,
+               texcoords: Vec<f32>,
                indices: Vec<u32>,
                material_id: Option<usize>)
                -> Mesh {
         Mesh {
-            positions: pos,
-            normals: norm,
-            texcoords: tex,
-            indices: indices,
-            material_id: material_id,
+            positions,
+            normals,
+            texcoords,
+            indices,
+            material_id,
         }
     }
     /// Create a new empty mesh
@@ -209,10 +209,7 @@ pub struct Model {
 impl Model {
     /// Create a new model, associating a name with a mesh
     pub fn new(mesh: Mesh, name: String) -> Model {
-        Model {
-            mesh: mesh,
-            name: name,
-        }
+        Model { mesh, name }
     }
 }
 
