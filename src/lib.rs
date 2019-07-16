@@ -381,6 +381,7 @@ impl VertexIndices {
 /// Enum representing either a quad or triangle face, storing indices for the face vertices
 #[derive(Debug)]
 enum Face {
+    Line(VertexIndices, VertexIndices),
     Triangle(VertexIndices, VertexIndices, VertexIndices),
     Quad(VertexIndices, VertexIndices, VertexIndices, VertexIndices),
     Polygon(Vec<VertexIndices>),
@@ -433,6 +434,7 @@ fn parse_face(face_str: SplitWhitespace,
     }
     // Check if we read a triangle or a quad face and push it on
     match indices.len() {
+        2 => faces.push(Face::Line(indices[0], indices[1])),
         3 => faces.push(Face::Triangle(indices[0], indices[1], indices[2])),
         4 => faces.push(Face::Quad(indices[0], indices[1], indices[2], indices[3])),
         _ => faces.push(Face::Polygon(indices)),
@@ -488,6 +490,10 @@ fn export_faces(pos: &[f32],
         // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
         // length triangle fan
         match *f {
+            Face::Line(ref a, ref b) => {
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+            }
             Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
@@ -643,7 +649,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                     return Err(LoadError::NormalParseError);
                 }
             }
-            Some("f") => {
+            Some("f") | Some("l") => {
                 if !parse_face(words,
                                &mut tmp_faces,
                                tmp_pos.len() / 3,
