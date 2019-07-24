@@ -9,4 +9,9 @@ Ka 0 0 0
 Kd 1 0 0
 Ks 0 0 0
 illum 2
+map_Ka this ambient texture has spaces.jpg
+map_Kd this diffuse texture has spaces.jpg
+map_Ks this specular texture has spaces.jpg
+map_Ns this normal texture has spaces.jpg
+map_d this dissolve texture has spaces.jpg
 
