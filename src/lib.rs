@@ -801,36 +801,26 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     return Err(LoadError::MaterialParseError);
                 }
             }
-            Some("map_Ka") => {
-                match words.next() {
-                    Some(tex) => cur_mat.ambient_texture = tex.to_owned(),
-                    None => return Err(LoadError::MaterialParseError),
-                }
-            }
-            Some("map_Kd") => {
-                match words.next() {
-                    Some(tex) => cur_mat.diffuse_texture = tex.to_owned(),
-                    None => return Err(LoadError::MaterialParseError),
-                }
-            }
-            Some("map_Ks") => {
-                match words.next() {
-                    Some(tex) => cur_mat.specular_texture = tex.to_owned(),
-                    None => return Err(LoadError::MaterialParseError),
-                }
-            }
-            Some("map_Ns") => {
-                match words.next() {
-                    Some(tex) => cur_mat.normal_texture = tex.to_owned(),
-                    None => return Err(LoadError::MaterialParseError),
-                }
-            }
-            Some("map_d") => {
-                match words.next() {
-                    Some(tex) => cur_mat.dissolve_texture = tex.to_owned(),
-                    None => return Err(LoadError::MaterialParseError),
-                }
-            }
+            Some("map_Ka") => match line.get(6..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.ambient_texture = tex.to_owned(),
+            },
+            Some("map_Kd") => match line.get(6..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.diffuse_texture = tex.to_owned(),
+            },
+            Some("map_Ks") => match line.get(6..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.specular_texture = tex.to_owned(),
+            },
+            Some("map_Ns") => match line.get(6..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.normal_texture = tex.to_owned(),
+            },
+            Some("map_d") => match line.get(5..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.dissolve_texture = tex.to_owned(),
+            },
             Some("illum") => {
                 if let Some(p) = words.next() {
                     match FromStr::from_str(p) {
