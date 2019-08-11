@@ -405,7 +405,7 @@ fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool
 
 /// Parse the float3 into the array passed, returns false if parsing failed
 fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
-    for (i, p) in val_str.enumerate() {
+    for (i, p) in val_str.enumerate().take(3) {
         match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
             Err(_) => return false,

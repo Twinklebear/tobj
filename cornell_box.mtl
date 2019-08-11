@@ -1,5 +1,5 @@
 newmtl white
-    Ka 0 0 0
+    Ka 0 0 0 #there's a comment inline
     Kd 1 1 1
     Ks 0 0 0
     Ke 1 1 1
@@ -7,7 +7,7 @@ newmtl white
 newmtl red
 Ka 0 0 0
 Kd 1 0 0
-Ks 0 0 0
+Ks 0 0 0 # this is a comment in line
 illum 2
 map_Ka this ambient texture has spaces.jpg
 map_Kd this diffuse texture has spaces.jpg
