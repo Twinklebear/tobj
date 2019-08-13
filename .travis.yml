@@ -8,7 +8,7 @@ before_script:
     - rustup component add clippy
 script:
     - travis-cargo build
-    - travis-cargo build --features log
+    - cargo build --features log
     - travis-cargo test
     - travis-cargo bench
     - travis-cargo doc
