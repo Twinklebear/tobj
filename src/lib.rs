@@ -522,10 +522,11 @@ fn export_faces(pos: &[f32],
 pub fn load_obj(file_name: &Path) -> LoadResult {
     let file = match File::open(file_name) {
         Ok(f) => f,
-        Err(e) => {
-            println!("tobj::load_obj - failed to open {:?} due to {}",
+        Err(_e) => {
+            #[cfg(feature = "log")]
+            log::error!("load_obj - failed to open {:?} due to {}",
                      file_name,
-                     e);
+                     _e);
             return Err(LoadError::OpenFileFailed);
         }
     };
@@ -547,10 +548,11 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
 pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
     let file = match File::open(file_name) {
         Ok(f) => f,
-        Err(e) => {
-            println!("tobj::load_mtl - failed to open {:?} due to {}",
+        Err(_e) => {
+            #[cfg(feature = "log")]
+            log::error!("load_mtl - failed to open {:?} due to {}",
                      file_name,
-                     e);
+                     _e);
             return Err(LoadError::OpenFileFailed);
         }
     };
@@ -618,8 +620,9 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
     for line in reader.lines() {
         let (line, mut words) = match line {
             Ok(ref line) => (&line[..], line[..].split_whitespace()),
-            Err(e) => {
-                println!("tobj::load_obj - failed to read line due to {}", e);
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_obj - failed to read line due to {}", _e);
                 return Err(LoadError::ReadError);
             }
         };
@@ -702,7 +705,8 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                         tmp_faces.clear();
                     }
                     if new_mat.is_none() {
-                        println!("Warning: Object {} refers to unfound material: {}",
+                        #[cfg(feature = "log")]
+                        log::warn!("Object {} refers to unfound material: {}",
                                         name,
                                         mat_name);
                     }
@@ -737,8 +741,9 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     for line in reader.lines() {
         let (line, mut words) = match line {
             Ok(ref line) => (line.trim(), line[..].split_whitespace()),
-            Err(e) => {
-                println!("tobj::load_obj - failed to read line due to {}", e);
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_obj - failed to read line due to {}", _e);
                 return Err(LoadError::ReadError);
             }
         };
