@@ -17,3 +17,5 @@ exclude = [
 	".travis.yml",
 ]
 
+[dependencies]
+log = { version = "0.4.8", optional = true }
