@@ -657,7 +657,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
             Some("o") | Some("g") => {
                 // If we were already parsing an object then a new object name
                 // signals the end of the current one, so push it onto our list of objects
-                if !name.is_empty() && !tmp_faces.is_empty() {
+                if !tmp_faces.is_empty() {
                     models.push(Model::new(export_faces(&tmp_pos,
                                                         &tmp_texcoord,
                                                         &tmp_normal,
@@ -668,7 +668,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                 }
                 name = line[1..].trim().to_owned();
                 if name.is_empty() {
-                    return Err(LoadError::InvalidObjectName);
+                    name = "unnamed_object".to_owned();
                 }
             }
             Some("mtllib") => {
@@ -721,14 +721,12 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
     }
     // For the last object in the file we won't encounter another object name to tell us when it's
     // done, so if we're parsing an object push the last one on the list as well
-    if !name.is_empty() {
-        models.push(Model::new(export_faces(&tmp_pos,
-                                            &tmp_texcoord,
-                                            &tmp_normal,
-                                            &tmp_faces,
-                                            mat_id),
-                               name));
-    }
+    models.push(Model::new(export_faces(&tmp_pos,
+                                        &tmp_texcoord,
+                                        &tmp_normal,
+                                        &tmp_faces,
+                                        mat_id),
+                            name));
     Ok((models, materials))
 }
 
