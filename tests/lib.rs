@@ -56,6 +56,28 @@ fn empty_name_triangle() {
     assert_eq!(mesh.indices, expect_idx);
 }
 
+#[test]
+fn test_lines() {
+    let m = tobj::load_obj(&Path::new("lines.obj"));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    // We expect a single model with no materials
+    assert_eq!(models.len(), 1);
+    assert!(mats.is_empty());
+    // Confirm our line list is loaded correctly
+    assert_eq!(models[0].name, "Lines");
+    let mesh = &models[0].mesh;
+    assert!(mesh.normals.is_empty());
+    assert!(mesh.texcoords.is_empty());
+    assert_eq!(mesh.material_id, None);
+
+    // Verify each position is loaded properly
+    let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+    assert_eq!(mesh.positions, expect_pos);
+    // Verify the indices are loaded properly
+    let expect_idx = vec![0, 1, 1, 2, 2, 0];
+    assert_eq!(mesh.indices, expect_idx);
+}
 
 #[test]
 fn multiple_face_formats() {
