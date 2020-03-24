@@ -280,7 +280,7 @@ impl Material {
 }
 
 /// Possible errors that may occur while loading OBJ and MTL files
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LoadError {
     OpenFileFailed,
     ReadError,
