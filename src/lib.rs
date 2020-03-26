@@ -25,7 +25,7 @@
 //! use std::path::Path;
 //! use tobj;
 //!
-//! let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
+//! let cornell_box = tobj::load_obj("cornell_box.obj");
 //! assert!(cornell_box.is_ok());
 //! let (models, materials) = cornell_box.unwrap();
 //!
@@ -525,8 +525,11 @@ fn export_faces(pos: &[f32],
 
 /// Load the various objects specified in the OBJ file and any associated MTL file
 /// Returns a pair of Vecs containing the loaded models and materials from the file.
-pub fn load_obj(file_name: &Path) -> LoadResult {
-    let file = match File::open(file_name) {
+pub fn load_obj<P>(file_name: P) -> LoadResult
+where
+    P: AsRef<Path> + fmt::Debug,
+{
+    let file = match File::open(file_name.as_ref()) {
         Ok(f) => f,
         Err(_e) => {
             #[cfg(feature = "log")]
@@ -538,7 +541,7 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
     };
     let mut reader = BufReader::new(file);
     load_obj_buf(&mut reader, |mat_path| {
-        let full_path = if let Some(parent) = file_name.parent() {
+        let full_path = if let Some(parent) = file_name.as_ref().parent() {
             parent.join(mat_path)
         } else {
             mat_path.to_owned()
@@ -551,8 +554,11 @@ pub fn load_obj(file_name: &Path) -> LoadResult {
 /// Load the materials defined in a MTL file
 /// Returns a pair with a `Vec` holding all loaded materials and a `HashMap` containing a mapping of
 /// material names to indices in the Vec.
-pub fn load_mtl(file_name: &Path) -> MTLLoadResult {
-    let file = match File::open(file_name) {
+pub fn load_mtl<P>(file_name: P) -> MTLLoadResult
+where
+    P: AsRef<Path> + fmt::Debug,
+{
+    let file = match File::open(file_name.as_ref()) {
         Ok(f) => f,
         Err(_e) => {
             #[cfg(feature = "log")]
