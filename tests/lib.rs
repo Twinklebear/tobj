@@ -12,7 +12,7 @@ const CORNELL_BOX_MTL2: &'static str = include_str!("../cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
-    let m = tobj::load_obj(&Path::new("triangle.obj"));
+    let m = tobj::load_obj("triangle.obj");
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -35,7 +35,7 @@ fn simple_triangle() {
 
 #[test]
 fn empty_name_triangle() {
-    let m = tobj::load_obj(&Path::new("empty_name_triangle.obj"));
+    let m = tobj::load_obj("empty_name_triangle.obj");
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -58,7 +58,7 @@ fn empty_name_triangle() {
 
 #[test]
 fn test_lines() {
-    let m = tobj::load_obj(&Path::new("lines.obj"));
+    let m = tobj::load_obj("lines.obj");
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -81,7 +81,7 @@ fn test_lines() {
 
 #[test]
 fn multiple_face_formats() {
-    let m = tobj::load_obj(&Path::new("quad.obj"));
+    let m = tobj::load_obj("quad.obj");
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     assert_eq!(models.len(), 3);
@@ -279,7 +279,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
 
 #[test]
 fn test_cornell() {
-    let m = tobj::load_obj(&Path::new("cornell_box.obj"));
+    let m = tobj::load_obj("cornell_box.obj");
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     assert_eq!(models.len(), 8);
@@ -334,5 +334,13 @@ fn test_custom_material_loader_files() {
     assert_eq!(models.len(), 8);
     assert_eq!(mats.len(), 5);
     validate_cornell(models, mats);
+}
+
+#[test]
+fn test_invalid_index() {
+    let m = tobj::load_obj("invalid_index.obj");
+    assert!(m.is_err());
+    let err = m.err().unwrap();
+    assert_eq!(err, tobj::LoadError::FaceVertexOutOfBounds);
 }
 

@@ -22,7 +22,6 @@
 //! normals and texture coordinates if the model has them.
 //!
 //! ```
-//! use std::path::Path;
 //! use tobj;
 //!
 //! let cornell_box = tobj::load_obj("cornell_box.obj");
@@ -126,9 +125,7 @@ use std::error::Error;
 /// corresponding Vec will be empty.
 ///
 /// ```
-/// use std::path::Path;
-///
-/// let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
+/// let cornell_box = tobj::load_obj("cornell_box.obj");
 /// assert!(cornell_box.is_ok());
 /// let (models, materials) = cornell_box.unwrap();
 ///
@@ -291,6 +288,9 @@ pub enum LoadError {
     FaceParseError,
     MaterialParseError,
     InvalidObjectName,
+    FaceVertexOutOfBounds,
+    FaceTexCoordOutOfBounds,
+    FaceNormalOutOfBounds,
     GenericFailure,
 }
 
@@ -306,6 +306,9 @@ impl fmt::Display for LoadError {
             LoadError::FaceParseError => "face parse error",
             LoadError::MaterialParseError => "material parse error",
             LoadError::InvalidObjectName => "invalid object name",
+            LoadError::FaceVertexOutOfBounds => "face vertex index out of bounds",
+            LoadError::FaceTexCoordOutOfBounds => "face texcoord index out of bounds",
+            LoadError::FaceNormalOutOfBounds => "face normal index out of bounds",
             LoadError::GenericFailure => "generic failure",
         };
 
@@ -446,22 +449,31 @@ fn add_vertex(mesh: &mut Mesh,
               vert: &VertexIndices,
               pos: &[f32],
               texcoord: &[f32],
-              normal: &[f32]) {
+              normal: &[f32]) -> Result<(), LoadError> {
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
             let v = vert.v as usize;
+            if v * 3 + 2 >= pos.len() {
+                return Err(LoadError::FaceVertexOutOfBounds);
+            }
             // Add the vertex to the mesh
             mesh.positions.push(pos[v * 3]);
             mesh.positions.push(pos[v * 3 + 1]);
             mesh.positions.push(pos[v * 3 + 2]);
             if !texcoord.is_empty() && vert.vt > -1 {
                 let vt = vert.vt as usize;
+                if vt * 2 + 1 >= texcoord.len() {
+                    return Err(LoadError::FaceTexCoordOutOfBounds);
+                }
                 mesh.texcoords.push(texcoord[vt * 2]);
                 mesh.texcoords.push(texcoord[vt * 2 + 1]);
             }
             if !normal.is_empty() && vert.vn > -1 {
                 let vn = vert.vn as usize;
+                if vn * 3 + 2 >= normal.len() {
+                    return Err(LoadError::FaceNormalOutOfBounds);
+                }
                 mesh.normals.push(normal[vn * 3]);
                 mesh.normals.push(normal[vn * 3 + 1]);
                 mesh.normals.push(normal[vn * 3 + 2]);
@@ -471,6 +483,7 @@ fn add_vertex(mesh: &mut Mesh,
             index_map.insert(*vert, next);
         }
     }
+    Ok(())
 }
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
@@ -479,7 +492,7 @@ fn export_faces(pos: &[f32],
                 normal: &[f32],
                 faces: &[Face],
                 mat_id: Option<usize>)
-                -> Mesh {
+                -> Result<Mesh, LoadError> {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
     mesh.material_id = mat_id;
@@ -488,36 +501,36 @@ fn export_faces(pos: &[f32],
         // length triangle fan
         match *f {
             Face::Line(ref a, ref b) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
             }
             Face::Triangle(ref a, ref b, ref c) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
 
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
-                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal);
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
             }
             Face::Polygon(ref indices) => {
                 let a = &indices[0];
                 let mut b = &indices[1];
                 for c in indices.iter().skip(2) {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal);
-                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal);
-                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal);
+                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
                     b = c;
                 }
             }
         }
     }
-    mesh
+    Ok(mesh)
 }
 
 /// Load the various objects specified in the OBJ file and any associated MTL file
@@ -671,7 +684,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                                         &tmp_texcoord,
                                                         &tmp_normal,
                                                         &tmp_faces,
-                                                        mat_id),
+                                                        mat_id)?,
                                            name));
                     tmp_faces.clear();
                 }
@@ -709,7 +722,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                                             &tmp_texcoord,
                                                             &tmp_normal,
                                                             &tmp_faces,
-                                                            mat_id),
+                                                            mat_id)?,
                                             name.clone()));
                         tmp_faces.clear();
                     }
@@ -734,7 +747,7 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                         &tmp_texcoord,
                                         &tmp_normal,
                                         &tmp_faces,
-                                        mat_id),
+                                        mat_id)?,
                             name));
     Ok((models, materials))
 }
