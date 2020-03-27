@@ -296,13 +296,7 @@ pub enum LoadError {
 
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for LoadError {
-    fn description(&self) -> &str {
-        match *self {
+        let msg = match *self {
             LoadError::OpenFileFailed => "open file failed",
             LoadError::ReadError => "read error",
             LoadError::UnrecognizedCharacter => "unrecognized character",
@@ -313,10 +307,13 @@ impl Error for LoadError {
             LoadError::MaterialParseError => "material parse error",
             LoadError::InvalidObjectName => "invalid object name",
             LoadError::GenericFailure => "generic failure",
-        }
+        };
+
+        f.write_str(msg)
     }
 }
 
+impl Error for LoadError {}
 
 /// `LoadResult` is a result containing all the models loaded from the file and any materials from
 /// referenced material libraries, or an error that occured while loading
