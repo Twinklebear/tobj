@@ -228,6 +228,8 @@ pub struct Material {
     /// Dissolve attribute is the alpha term for the material. Referred to as dissolve since that's
     /// what the MTL file format docs refer to it as
     pub dissolve: f32,
+    /// Material light emission attribute
+    pub emission: [f32; 3],
     /// Optical density also known as index of refraction. Called optical_density in the MTL specc.
     /// Takes on a value between 0.001 and 10.0. 1.0 means light does not bend as it passed through
     /// the object.
@@ -264,6 +266,7 @@ impl Material {
             specular: [0.0; 3],
             shininess: 0.0,
             dissolve: 1.0,
+            emission: [0.0; 3],
             optical_density: 1.0,
             ambient_texture: String::new(),
             diffuse_texture: String::new(),
@@ -788,6 +791,11 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             }
             Some("Kd") => {
                 if !parse_float3(words, &mut cur_mat.diffuse) {
+                    return Err(LoadError::MaterialParseError);
+                }
+            }
+            Some("Ke") => {
+                if !parse_float3(words, &mut cur_mat.emission) {
                     return Err(LoadError::MaterialParseError);
                 }
             }
