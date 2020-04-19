@@ -713,8 +713,9 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                 }
             }
             Some("usemtl") => {
-                if let Some(mat_name) = words.next() {
-                    let new_mat = mat_map.get(mat_name).cloned();
+                let mat_name = line[7..].trim().to_owned();
+                if !mat_name.is_empty() {
+                    let new_mat = mat_map.get(&mat_name).cloned();
                     // As materials are returned per-model, a new material within an object
                     // has to emit a new model with the same name but different material
                     if mat_id != new_mat && !tmp_faces.is_empty() {
