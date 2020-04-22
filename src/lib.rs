@@ -838,7 +838,11 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                 Some("") | None => return Err(LoadError::MaterialParseError),
                 Some(tex) => cur_mat.specular_texture = tex.to_owned(),
             },
-            Some("map_Ns") => match line.get(6..).map(str::trim) {
+            Some("map_Bump") | Some("map_bump") => match line.get(8..).map(str::trim) {
+                Some("") | None => return Err(LoadError::MaterialParseError),
+                Some(tex) => cur_mat.normal_texture = tex.to_owned(),
+            },
+            Some("bump") => match line.get(4..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
                 Some(tex) => cur_mat.normal_texture = tex.to_owned(),
             },
