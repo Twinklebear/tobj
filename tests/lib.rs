@@ -87,19 +87,19 @@ fn non_triangulated_quad() {
     assert!(mats.is_empty());
 
     // First one is a quad formed by two triangles
-    assert_eq!(models[0].mesh.face_vertices.len(), 2);
-    assert_eq!(models[0].mesh.face_vertices[0], 3);
-    assert_eq!(models[0].mesh.face_vertices[1], 3);
+    assert_eq!(models[0].mesh.num_face_indices.len(), 2);
+    assert_eq!(models[0].mesh.num_face_indices[0], 3);
+    assert_eq!(models[0].mesh.num_face_indices[1], 3);
 
     // Second is a quad face
-    assert_eq!(models[1].mesh.face_vertices.len(), 1);
-    assert_eq!(models[1].mesh.face_vertices[0], 4);
+    assert_eq!(models[1].mesh.num_face_indices.len(), 1);
+    assert_eq!(models[1].mesh.num_face_indices[0], 4);
     let expect_quad_indices = vec![0, 1, 2, 3];
     assert_eq!(models[1].mesh.indices, expect_quad_indices);
 
     // Third is a triangle
-    assert_eq!(models[2].mesh.face_vertices.len(), 1);
-    assert_eq!(models[2].mesh.face_vertices[0], 3);
+    assert_eq!(models[2].mesh.num_face_indices.len(), 1);
+    assert_eq!(models[2].mesh.num_face_indices[0], 3);
 }
 
 #[test]

@@ -44,11 +44,11 @@ fn main() {
         println!("    material.map_Ka = {}", m.ambient_texture);
         println!("    material.map_Kd = {}", m.diffuse_texture);
         println!("    material.map_Ks = {}", m.specular_texture);
-        println!("    material.map_Ns = {}", m.normal_texture);
+        println!("    material.map_Ns = {}", m.shininess_texture);
+        println!("    material.map_Bump = {}", m.normal_texture);
         println!("    material.map_d = {}", m.dissolve_texture);
         for (k, v) in &m.unknown_param {
             println!("    material.{} = {}", k, v);
         }
     }
-
 }
