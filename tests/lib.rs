@@ -1,7 +1,6 @@
 extern crate tobj;
 
 use std::io::Cursor;
-use std::path::Path;
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
@@ -12,7 +11,7 @@ const CORNELL_BOX_MTL2: &'static str = include_str!("../cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
-    let m = tobj::load_obj("triangle.obj");
+    let m = tobj::load_obj("triangle.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -35,7 +34,7 @@ fn simple_triangle() {
 
 #[test]
 fn empty_name_triangle() {
-    let m = tobj::load_obj("empty_name_triangle.obj");
+    let m = tobj::load_obj("empty_name_triangle.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -58,7 +57,7 @@ fn empty_name_triangle() {
 
 #[test]
 fn test_lines() {
-    let m = tobj::load_obj("lines.obj");
+    let m = tobj::load_obj("lines.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     // We expect a single model with no materials
@@ -80,8 +79,32 @@ fn test_lines() {
 }
 
 #[test]
+fn non_triangulated_quad() {
+    let m = tobj::load_obj("quad.obj", false);
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    assert_eq!(models.len(), 3);
+    assert!(mats.is_empty());
+
+    // First one is a quad formed by two triangles
+    assert_eq!(models[0].mesh.face_vertices.len(), 2);
+    assert_eq!(models[0].mesh.face_vertices[0], 3);
+    assert_eq!(models[0].mesh.face_vertices[1], 3);
+
+    // Second is a quad face
+    assert_eq!(models[1].mesh.face_vertices.len(), 1);
+    assert_eq!(models[1].mesh.face_vertices[0], 4);
+    let expect_quad_indices = vec![0, 1, 2, 3];
+    assert_eq!(models[1].mesh.indices, expect_quad_indices);
+
+    // Third is a triangle
+    assert_eq!(models[2].mesh.face_vertices.len(), 1);
+    assert_eq!(models[2].mesh.face_vertices[0], 3);
+}
+
+#[test]
 fn multiple_face_formats() {
-    let m = tobj::load_obj("quad.obj");
+    let m = tobj::load_obj("quad.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     assert_eq!(models.len(), 3);
@@ -279,7 +302,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
 
 #[test]
 fn test_cornell() {
-    let m = tobj::load_obj("cornell_box.obj");
+    let m = tobj::load_obj("cornell_box.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     assert_eq!(models.len(), 8);
@@ -289,7 +312,7 @@ fn test_cornell() {
 
 #[test]
 fn test_custom_material_loader() {
-    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), |p| {
+    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), true, |p| {
         match p.to_str().unwrap() {
             "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
             "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
@@ -316,7 +339,7 @@ fn test_custom_material_loader_files() {
     let mut cornell_box_mtl2 = dir.clone();
     cornell_box_mtl2.push("cornell_box2.mtl");
 
-    let m = tobj::load_obj_buf(&mut cornell_box_file, |p| {
+    let m = tobj::load_obj_buf(&mut cornell_box_file, true, |p| {
         match p.file_name().unwrap().to_str().unwrap() {
             "cornell_box.mtl" => {
                 let f = File::open(cornell_box_mtl1.as_path()).unwrap();
@@ -338,7 +361,7 @@ fn test_custom_material_loader_files() {
 
 #[test]
 fn test_invalid_index() {
-    let m = tobj::load_obj("invalid_index.obj");
+    let m = tobj::load_obj("invalid_index.obj", true);
     assert!(m.is_err());
     let err = m.err().unwrap();
     assert_eq!(err, tobj::LoadError::FaceVertexOutOfBounds);

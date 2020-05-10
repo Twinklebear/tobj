@@ -37,9 +37,9 @@ print out its attributes.
 extern crate tobj;
 
 use std::path::Path;
-use tobj;
 
-let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"));
+// Specify true to have tobj triangulate faces for your, false to not triangulate
+let cornell_box = tobj::load_obj(&Path::new("cornell_box.obj"), true);
 assert!(cornell_box.is_ok());
 let (models, materials) = cornell_box.unwrap();
 

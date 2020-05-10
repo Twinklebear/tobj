@@ -24,7 +24,7 @@
 //! ```
 //! use tobj;
 //!
-//! let cornell_box = tobj::load_obj("cornell_box.obj");
+//! let cornell_box = tobj::load_obj("cornell_box.obj", true);
 //! assert!(cornell_box.is_ok());
 //! let (models, materials) = cornell_box.unwrap();
 //!
@@ -125,7 +125,7 @@ use std::error::Error;
 /// corresponding Vec will be empty.
 ///
 /// ```
-/// let cornell_box = tobj::load_obj("cornell_box.obj");
+/// let cornell_box = tobj::load_obj("cornell_box.obj", true);
 /// assert!(cornell_box.is_ok());
 /// let (models, materials) = cornell_box.unwrap();
 ///
@@ -157,30 +157,21 @@ pub struct Mesh {
     /// the mesh. Not all meshes have normals, if no texture coordinates are specified this Vec
     /// will be empty
     pub texcoords: Vec<f32>,
-    /// Indices for vertices of each triangle. Each face in the mesh is a triangle and the indices
-    /// specify the position, normal and texture coordinate for each vertex of the face.
+    /// Indices for vertices of each triangle. If loaded with `triangulate_faces`, each face in the
+    /// mesh is a triangle, otherwise the `num_face_indices` vector indicates how many indices
+    /// are used by each face. The indices specify the position, normal and texture coordinate
+    /// for each vertex of the face.
     pub indices: Vec<u32>,
+    /// The number of vertices used by each face. When using non-triangulated faces, the offset
+    /// for the starting index of a face can be found by iterating through the `num_face_indices`
+    /// until reaching the desired face, accumulating the number of vertices used so far.
+    pub num_face_indices: Vec<u32>,
     /// Optional material id associated with this mesh. The material id indexes into the Vec of
     /// Materials loaded from the associated MTL file
     pub material_id: Option<usize>,
 }
 
 impl Mesh {
-    /// Create a new mesh specifying the geometry for the mesh
-    pub fn new(positions: Vec<f32>,
-               normals: Vec<f32>,
-               texcoords: Vec<f32>,
-               indices: Vec<u32>,
-               material_id: Option<usize>)
-               -> Mesh {
-        Mesh {
-            positions,
-            normals,
-            texcoords,
-            indices,
-            material_id,
-        }
-    }
     /// Create a new empty mesh
     pub fn empty() -> Mesh {
         Mesh {
@@ -188,6 +179,7 @@ impl Mesh {
             normals: Vec::new(),
             texcoords: Vec::new(),
             indices: Vec::new(),
+            num_face_indices: Vec::new(),
             material_id: None,
         }
     }
@@ -491,7 +483,8 @@ fn export_faces(pos: &[f32],
                 texcoord: &[f32],
                 normal: &[f32],
                 faces: &[Face],
-                mat_id: Option<usize>)
+                mat_id: Option<usize>,
+                triangulate_faces: bool)
                 -> Result<Mesh, LoadError> {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
@@ -503,29 +496,49 @@ fn export_faces(pos: &[f32],
             Face::Line(ref a, ref b) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                mesh.num_face_indices.push(2);
             }
             Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                mesh.num_face_indices.push(3);
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
-            }
-            Face::Polygon(ref indices) => {
-                let a = &indices[0];
-                let mut b = &indices[1];
-                for c in indices.iter().skip(2) {
+                if triangulate_faces {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                    b = c;
+                    mesh.num_face_indices.push(3);
+
+                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
+                    mesh.num_face_indices.push(3);
+                } else {
+                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
+                    mesh.num_face_indices.push(4);
+                }
+            }
+            Face::Polygon(ref indices) => {
+                if triangulate_faces {
+                    let a = &indices[0];
+                    let mut b = &indices[1];
+                    for c in indices.iter().skip(2) {
+                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                        mesh.num_face_indices.push(3);
+                        b = c;
+                    }
+                } else {
+                    for i in indices.iter() {
+                        add_vertex(&mut mesh, &mut index_map, i, pos, texcoord, normal)?;
+                    }
+                    mesh.num_face_indices.push(indices.len() as u32);
                 }
             }
         }
@@ -535,7 +548,7 @@ fn export_faces(pos: &[f32],
 
 /// Load the various objects specified in the OBJ file and any associated MTL file
 /// Returns a pair of Vecs containing the loaded models and materials from the file.
-pub fn load_obj<P>(file_name: P) -> LoadResult
+pub fn load_obj<P>(file_name: P, triangulate_faces: bool) -> LoadResult
 where
     P: AsRef<Path> + fmt::Debug,
 {
@@ -550,7 +563,7 @@ where
         }
     };
     let mut reader = BufReader::new(file);
-    load_obj_buf(&mut reader, |mat_path| {
+    load_obj_buf(&mut reader, triangulate_faces, |mat_path| {
         let full_path = if let Some(parent) = file_name.as_ref().parent() {
             parent.join(mat_path)
         } else {
@@ -611,7 +624,7 @@ where
 /// let mut cornell_box_mtl2 = dir.clone();
 /// cornell_box_mtl2.push("cornell_box2.mtl");
 ///
-/// let m = tobj::load_obj_buf(&mut cornell_box_file, |p| {
+/// let m = tobj::load_obj_buf(&mut cornell_box_file, true, |p| {
 ///     match p.file_name().unwrap().to_str().unwrap() {
 ///         "cornell_box.mtl" => {
 ///             let f = File::open(cornell_box_mtl1.as_path()).unwrap();
@@ -625,7 +638,7 @@ where
 ///     }
 /// });
 /// ```
-pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
+pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loader: ML) -> LoadResult
         where B: BufRead, ML: Fn(&Path) -> MTLLoadResult {
     let mut models = Vec::new();
     let mut materials = Vec::new();
@@ -684,7 +697,8 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                                         &tmp_texcoord,
                                                         &tmp_normal,
                                                         &tmp_faces,
-                                                        mat_id)?,
+                                                        mat_id,
+                                                        triangulate_faces)?,
                                            name));
                     tmp_faces.clear();
                 }
@@ -723,7 +737,8 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                                             &tmp_texcoord,
                                                             &tmp_normal,
                                                             &tmp_faces,
-                                                            mat_id)?,
+                                                            mat_id,
+                                                            triangulate_faces)?,
                                             name.clone()));
                         tmp_faces.clear();
                     }
@@ -748,7 +763,8 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, material_loader: ML) -> LoadResult
                                         &tmp_texcoord,
                                         &tmp_normal,
                                         &tmp_faces,
-                                        mat_id)?,
+                                        mat_id,
+                                        triangulate_faces)?,
                             name));
     Ok((models, materials))
 }
@@ -954,19 +970,3 @@ pub fn print_material_info(materials: &[Material]) {
     }
 }
 
-#[cfg(all(test, feature = "unstable"))]
-mod benches {
-    use test::Bencher;
-    use std::path::Path;
-    use super::load_obj;
-
-    #[bench]
-    fn bench_cornell(b: &mut Bencher) {
-        let path = Path::new("cornell_box.obj");
-        b.iter(|| {
-                   let m = load_obj(path);
-                   assert!(m.is_ok());
-                   m.is_ok()
-               });
-    }
-}
