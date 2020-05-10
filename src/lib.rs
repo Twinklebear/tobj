@@ -109,14 +109,14 @@
 #[cfg(all(test, feature = "unstable"))]
 extern crate test;
 
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
-use std::fs::File;
-use std::collections::HashMap;
 use std::str::{FromStr, SplitWhitespace};
-use std::fmt;
-use std::error::Error;
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
@@ -346,11 +346,12 @@ impl VertexIndices {
     /// Also handles relative face indices (negative values) which is why passing the number of
     /// positions, texcoords and normals is required
     /// Returns None if the face string is invalid
-    fn parse(face_str: &str,
-             pos_sz: usize,
-             tex_sz: usize,
-             norm_sz: usize)
-             -> Option<VertexIndices> {
+    fn parse(
+        face_str: &str,
+        pos_sz: usize,
+        tex_sz: usize,
+        norm_sz: usize,
+    ) -> Option<VertexIndices> {
         let mut indices = [-1; 3];
         for i in face_str.split('/').enumerate() {
             // Catch case of v//vn where we'll find an empty string in one of our splits
@@ -375,10 +376,10 @@ impl VertexIndices {
             }
         }
         Some(VertexIndices {
-                 v: indices[0],
-                 vt: indices[1],
-                 vn: indices[2],
-             })
+            v: indices[0],
+            vt: indices[1],
+            vn: indices[2],
+        })
     }
 }
 
@@ -423,12 +424,13 @@ fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
 /// Also handles relative face indices (negative values) which is why passing the number of
 /// positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
-fn parse_face(face_str: SplitWhitespace,
-              faces: &mut Vec<Face>,
-              pos_sz: usize,
-              tex_sz: usize,
-              norm_sz: usize)
-              -> bool {
+fn parse_face(
+    face_str: SplitWhitespace,
+    faces: &mut Vec<Face>,
+    pos_sz: usize,
+    tex_sz: usize,
+    norm_sz: usize,
+) -> bool {
     let mut indices = Vec::new();
     for f in face_str {
         match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
@@ -448,12 +450,14 @@ fn parse_face(face_str: SplitWhitespace,
 
 /// Add a vertex to a mesh by either re-using an existing index (eg. it's in the `index_map`)
 /// or appending the position, texcoord and normal as appropriate and creating a new vertex
-fn add_vertex(mesh: &mut Mesh,
-              index_map: &mut HashMap<VertexIndices, u32>,
-              vert: &VertexIndices,
-              pos: &[f32],
-              texcoord: &[f32],
-              normal: &[f32]) -> Result<(), LoadError> {
+fn add_vertex(
+    mesh: &mut Mesh,
+    index_map: &mut HashMap<VertexIndices, u32>,
+    vert: &VertexIndices,
+    pos: &[f32],
+    texcoord: &[f32],
+    normal: &[f32],
+) -> Result<(), LoadError> {
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
@@ -491,13 +495,14 @@ fn add_vertex(mesh: &mut Mesh,
 }
 
 /// Export a list of faces to a mesh and return it, converting quads to tris
-fn export_faces(pos: &[f32],
-                texcoord: &[f32],
-                normal: &[f32],
-                faces: &[Face],
-                mat_id: Option<usize>,
-                triangulate_faces: bool)
-                -> Result<Mesh, LoadError> {
+fn export_faces(
+    pos: &[f32],
+    texcoord: &[f32],
+    normal: &[f32],
+    faces: &[Face],
+    mat_id: Option<usize>,
+    triangulate_faces: bool,
+) -> Result<Mesh, LoadError> {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh::empty();
     mesh.material_id = mat_id;
@@ -568,9 +573,7 @@ where
         Ok(f) => f,
         Err(_e) => {
             #[cfg(feature = "log")]
-            log::error!("load_obj - failed to open {:?} due to {}",
-                     file_name,
-                     _e);
+            log::error!("load_obj - failed to open {:?} due to {}", file_name, _e);
             return Err(LoadError::OpenFileFailed);
         }
     };
@@ -597,9 +600,7 @@ where
         Ok(f) => f,
         Err(_e) => {
             #[cfg(feature = "log")]
-            log::error!("load_mtl - failed to open {:?} due to {}",
-                     file_name,
-                     _e);
+            log::error!("load_mtl - failed to open {:?} due to {}", file_name, _e);
             return Err(LoadError::OpenFileFailed);
         }
     };
@@ -650,8 +651,15 @@ where
 ///     }
 /// });
 /// ```
-pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loader: ML) -> LoadResult
-        where B: BufRead, ML: Fn(&Path) -> MTLLoadResult {
+pub fn load_obj_buf<B, ML>(
+    reader: &mut B,
+    triangulate_faces: bool,
+    material_loader: ML,
+) -> LoadResult
+where
+    B: BufRead,
+    ML: Fn(&Path) -> MTLLoadResult,
+{
     let mut models = Vec::new();
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
@@ -691,11 +699,13 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loa
                 }
             }
             Some("f") | Some("l") => {
-                if !parse_face(words,
-                               &mut tmp_faces,
-                               tmp_pos.len() / 3,
-                               tmp_texcoord.len() / 2,
-                               tmp_normal.len() / 3) {
+                if !parse_face(
+                    words,
+                    &mut tmp_faces,
+                    tmp_pos.len() / 3,
+                    tmp_texcoord.len() / 2,
+                    tmp_normal.len() / 3,
+                ) {
                     return Err(LoadError::FaceParseError);
                 }
             }
@@ -705,13 +715,17 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loa
                 // If we were already parsing an object then a new object name
                 // signals the end of the current one, so push it onto our list of objects
                 if !tmp_faces.is_empty() {
-                    models.push(Model::new(export_faces(&tmp_pos,
-                                                        &tmp_texcoord,
-                                                        &tmp_normal,
-                                                        &tmp_faces,
-                                                        mat_id,
-                                                        triangulate_faces)?,
-                                           name));
+                    models.push(Model::new(
+                        export_faces(
+                            &tmp_pos,
+                            &tmp_texcoord,
+                            &tmp_normal,
+                            &tmp_faces,
+                            mat_id,
+                            triangulate_faces,
+                        )?,
+                        name,
+                    ));
                     tmp_faces.clear();
                 }
                 name = line[1..].trim().to_owned();
@@ -745,20 +759,22 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loa
                     // As materials are returned per-model, a new material within an object
                     // has to emit a new model with the same name but different material
                     if mat_id != new_mat && !tmp_faces.is_empty() {
-                        models.push(Model::new(export_faces(&tmp_pos,
-                                                            &tmp_texcoord,
-                                                            &tmp_normal,
-                                                            &tmp_faces,
-                                                            mat_id,
-                                                            triangulate_faces)?,
-                                            name.clone()));
+                        models.push(Model::new(
+                            export_faces(
+                                &tmp_pos,
+                                &tmp_texcoord,
+                                &tmp_normal,
+                                &tmp_faces,
+                                mat_id,
+                                triangulate_faces,
+                            )?,
+                            name.clone(),
+                        ));
                         tmp_faces.clear();
                     }
                     if new_mat.is_none() {
                         #[cfg(feature = "log")]
-                        log::warn!("Object {} refers to unfound material: {}",
-                                        name,
-                                        mat_name);
+                        log::warn!("Object {} refers to unfound material: {}", name, mat_name);
                     }
                     mat_id = new_mat;
                 } else {
@@ -771,13 +787,17 @@ pub fn load_obj_buf<B, ML>(reader: &mut B, triangulate_faces: bool, material_loa
     }
     // For the last object in the file we won't encounter another object name to tell us when it's
     // done, so if we're parsing an object push the last one on the list as well
-    models.push(Model::new(export_faces(&tmp_pos,
-                                        &tmp_texcoord,
-                                        &tmp_normal,
-                                        &tmp_faces,
-                                        mat_id,
-                                        triangulate_faces)?,
-                            name));
+    models.push(Model::new(
+        export_faces(
+            &tmp_pos,
+            &tmp_texcoord,
+            &tmp_normal,
+            &tmp_faces,
+            mat_id,
+            triangulate_faces,
+        )?,
+        name,
+    ));
     Ok((models, materials))
 }
 
@@ -908,4 +928,3 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     }
     Ok((materials, mat_map))
 }
-

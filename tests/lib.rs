@@ -1,9 +1,9 @@
 extern crate tobj;
 
-use std::io::Cursor;
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Cursor;
 
 const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
 const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
@@ -150,12 +150,13 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mesh.material_id, Some(0));
     let expect_indices = vec![0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11];
     // Will this be an issue with floating point precision?
-    let expect_verts = vec![552.799988, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
-                            0.000000, 0.000000, 559.200012, 549.599976, 0.000000, 559.200012,
-                            290.000000, 0.000000, 114.000000, 240.000000, 0.000000, 272.000000,
-                            82.000000, 0.000000, 225.000000, 130.000000, 0.000000, 65.000000,
-                            472.000000, 0.000000, 406.000000, 314.000000, 0.000000, 456.000000,
-                            265.000000, 0.000000, 296.000000, 423.000000, 0.000000, 247.000000];
+    let expect_verts = vec![
+        552.799988, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
+        559.200012, 549.599976, 0.000000, 559.200012, 290.000000, 0.000000, 114.000000, 240.000000,
+        0.000000, 272.000000, 82.000000, 0.000000, 225.000000, 130.000000, 0.000000, 65.000000,
+        472.000000, 0.000000, 406.000000, 314.000000, 0.000000, 456.000000, 265.000000, 0.000000,
+        296.000000, 423.000000, 0.000000, 247.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -164,9 +165,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[1].mesh;
     assert_eq!(mesh.material_id, Some(3));
     let expect_indices = vec![0, 1, 2, 0, 2, 3];
-    let expect_verts = vec![343.000000, 548.000000, 227.000000, 343.000000, 548.000000,
-                            332.000000, 213.000000, 548.000000, 332.000000, 213.000000,
-                            548.000000, 227.000000];
+    let expect_verts = vec![
+        343.000000, 548.000000, 227.000000, 343.000000, 548.000000, 332.000000, 213.000000,
+        548.000000, 332.000000, 213.000000, 548.000000, 227.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -174,8 +176,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[2].name, "ceiling");
     let mesh = &models[2].mesh;
     assert_eq!(mesh.material_id, Some(0));
-    let expect_verts = vec![556.000000, 548.799988, 0.000000, 556.000000, 548.799988, 559.200012,
-                            0.000000, 548.799988, 559.200012, 0.000000, 548.799988, 0.000000];
+    let expect_verts = vec![
+        556.000000, 548.799988, 0.000000, 556.000000, 548.799988, 559.200012, 0.000000, 548.799988,
+        559.200012, 0.000000, 548.799988, 0.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -183,8 +187,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[3].name, "back_wall");
     let mesh = &models[3].mesh;
     assert_eq!(mesh.material_id, Some(0));
-    let expect_verts = vec![549.599976, 0.000000, 559.200012, 0.000000, 0.000000, 559.200012,
-                            0.000000, 548.799988, 559.200012, 556.000000, 548.799988, 559.200012];
+    let expect_verts = vec![
+        549.599976, 0.000000, 559.200012, 0.000000, 0.000000, 559.200012, 0.000000, 548.799988,
+        559.200012, 556.000000, 548.799988, 559.200012,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -192,8 +198,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[4].name, "green_wall");
     let mesh = &models[4].mesh;
     assert_eq!(mesh.material_id, Some(4));
-    let expect_verts = vec![0.000000, 0.000000, 559.200012, 0.000000, 0.000000, 0.000000,
-                            0.000000, 548.799988, 0.000000, 0.000000, 548.799988, 559.200012];
+    let expect_verts = vec![
+        0.000000, 0.000000, 559.200012, 0.000000, 0.000000, 0.000000, 0.000000, 548.799988,
+        0.000000, 0.000000, 548.799988, 559.200012,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -201,8 +209,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[5].name, "red_wall");
     let mesh = &models[5].mesh;
     assert_eq!(mesh.material_id, Some(1));
-    let expect_verts = vec![552.799988, 0.000000, 0.000000, 549.599976, 0.000000, 559.200012,
-                            556.000000, 548.799988, 559.200012, 556.000000, 548.799988, 0.000000];
+    let expect_verts = vec![
+        552.799988, 0.000000, 0.000000, 549.599976, 0.000000, 559.200012, 556.000000, 548.799988,
+        559.200012, 556.000000, 548.799988, 0.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -210,18 +220,20 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[6].name, "short_block");
     let mesh = &models[6].mesh;
     assert_eq!(mesh.material_id, Some(0));
-    let expect_indices = vec![0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14,
-                              12, 14, 15, 16, 17, 18, 16, 18, 19];
-    let expect_verts =
-        vec![130.000000, 165.000000, 65.000000, 82.000000, 165.000000, 225.000000, 240.000000,
-             165.000000, 272.000000, 290.000000, 165.000000, 114.000000, 290.000000, 0.000000,
-             114.000000, 290.000000, 165.000000, 114.000000, 240.000000, 165.000000, 272.000000,
-             240.000000, 0.000000, 272.000000, 130.000000, 0.000000, 65.000000, 130.000000,
-             165.000000, 65.000000, 290.000000, 165.000000, 114.000000, 290.000000, 0.000000,
-             114.000000, 82.000000, 0.000000, 225.000000, 82.000000, 165.000000, 225.000000,
-             130.000000, 165.000000, 65.000000, 130.000000, 0.000000, 65.000000, 240.000000,
-             0.000000, 272.000000, 240.000000, 165.000000, 272.000000, 82.000000, 165.000000,
-             225.000000, 82.000000, 0.000000, 225.000000];
+    let expect_indices = vec![
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17,
+        18, 16, 18, 19,
+    ];
+    let expect_verts = vec![
+        130.000000, 165.000000, 65.000000, 82.000000, 165.000000, 225.000000, 240.000000,
+        165.000000, 272.000000, 290.000000, 165.000000, 114.000000, 290.000000, 0.000000,
+        114.000000, 290.000000, 165.000000, 114.000000, 240.000000, 165.000000, 272.000000,
+        240.000000, 0.000000, 272.000000, 130.000000, 0.000000, 65.000000, 130.000000, 165.000000,
+        65.000000, 290.000000, 165.000000, 114.000000, 290.000000, 0.000000, 114.000000, 82.000000,
+        0.000000, 225.000000, 82.000000, 165.000000, 225.000000, 130.000000, 165.000000, 65.000000,
+        130.000000, 0.000000, 65.000000, 240.000000, 0.000000, 272.000000, 240.000000, 165.000000,
+        272.000000, 82.000000, 165.000000, 225.000000, 82.000000, 0.000000, 225.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -229,18 +241,21 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(models[7].name, "tall_block");
     let mesh = &models[7].mesh;
     assert_eq!(mesh.material_id, Some(0));
-    let expect_indices = vec![0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14,
-                              12, 14, 15, 16, 17, 18, 16, 18, 19];
-    let expect_verts =
-        vec![423.000000, 330.000000, 247.000000, 265.000000, 330.000000, 296.000000, 314.000000,
-             330.000000, 456.000000, 472.000000, 330.000000, 406.000000, 423.000000, 0.000000,
-             247.000000, 423.000000, 330.000000, 247.000000, 472.000000, 330.000000, 406.000000,
-             472.000000, 0.000000, 406.000000, 472.000000, 0.000000, 406.000000, 472.000000,
-             330.000000, 406.000000, 314.000000, 330.000000, 456.000000, 314.000000, 0.000000,
-             456.000000, 314.000000, 0.000000, 456.000000, 314.000000, 330.000000, 456.000000,
-             265.000000, 330.000000, 296.000000, 265.000000, 0.000000, 296.000000, 265.000000,
-             0.000000, 296.000000, 265.000000, 330.000000, 296.000000, 423.000000, 330.000000,
-             247.000000, 423.000000, 0.000000, 247.000000];
+    let expect_indices = vec![
+        0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17,
+        18, 16, 18, 19,
+    ];
+    let expect_verts = vec![
+        423.000000, 330.000000, 247.000000, 265.000000, 330.000000, 296.000000, 314.000000,
+        330.000000, 456.000000, 472.000000, 330.000000, 406.000000, 423.000000, 0.000000,
+        247.000000, 423.000000, 330.000000, 247.000000, 472.000000, 330.000000, 406.000000,
+        472.000000, 0.000000, 406.000000, 472.000000, 0.000000, 406.000000, 472.000000, 330.000000,
+        406.000000, 314.000000, 330.000000, 456.000000, 314.000000, 0.000000, 456.000000,
+        314.000000, 0.000000, 456.000000, 314.000000, 330.000000, 456.000000, 265.000000,
+        330.000000, 296.000000, 265.000000, 0.000000, 296.000000, 265.000000, 0.000000, 296.000000,
+        265.000000, 330.000000, 296.000000, 423.000000, 330.000000, 247.000000, 423.000000,
+        0.000000, 247.000000,
+    ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
 
@@ -250,8 +265,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
     assert_eq!(mat.diffuse, [1.0, 1.0, 1.0]);
     assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
-    assert_eq!(mat.unknown_param.get("Ke").map(|s| s.as_ref()),
-               Some("1 1 1"));
+    assert_eq!(
+        mat.unknown_param.get("Ke").map(|s| s.as_ref()),
+        Some("1 1 1")
+    );
     assert_eq!(mat.illumination_model, None);
 
     // Verify red material loaded properly
@@ -275,8 +292,10 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
     assert_eq!(mat.shininess, 10.0);
     assert_eq!(mat.unknown_param.len(), 1);
-    assert_eq!(mat.unknown_param.get("crazy_unknown"),
-               Some(&"Wierd stuff here".to_string()));
+    assert_eq!(
+        mat.unknown_param.get("crazy_unknown"),
+        Some(&"Wierd stuff here".to_string())
+    );
 
     // Verify light material loaded properly
     assert_eq!(mats[3].name, "light");
@@ -344,11 +363,11 @@ fn test_custom_material_loader_files() {
             "cornell_box.mtl" => {
                 let f = File::open(cornell_box_mtl1.as_path()).unwrap();
                 tobj::load_mtl_buf(&mut BufReader::new(f))
-            },
+            }
             "cornell_box2.mtl" => {
                 let f = File::open(cornell_box_mtl2.as_path()).unwrap();
                 tobj::load_mtl_buf(&mut BufReader::new(f))
-            },
+            }
             _ => unreachable!(),
         }
     });
@@ -366,4 +385,3 @@ fn test_invalid_index() {
     let err = m.err().unwrap();
     assert_eq!(err, tobj::LoadError::FaceVertexOutOfBounds);
 }
-
