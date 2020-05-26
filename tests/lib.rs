@@ -282,6 +282,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mat.diffuse_texture, "this diffuse texture has spaces.jpg");
     assert_eq!(mat.specular_texture, "this specular texture has spaces.jpg");
     assert_eq!(mat.normal_texture, "this normal texture has spaces.jpg");
+    assert_eq!(mat.shininess_texture, "this shininess texture has spaces.jpg");
     assert_eq!(mat.dissolve_texture, "this dissolve texture has spaces.jpg");
 
     // Verify blue material loaded properly
@@ -316,6 +317,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mat.diffuse_texture, "dummy_texture.png");
     assert_eq!(mat.specular_texture, "dummy_texture.png");
     assert_eq!(mat.normal_texture, "dummy_texture.png");
+    assert_eq!(mat.shininess_texture, "dummy_texture.png");
     assert_eq!(mat.dissolve_texture, "dummy_texture.png");
 }
 

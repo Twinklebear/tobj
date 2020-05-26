@@ -891,7 +891,7 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                 Some("") | None => return Err(LoadError::MaterialParseError),
                 Some(tex) => cur_mat.normal_texture = tex.to_owned(),
             },
-            Some("map_Ns") | Some("map_ns") => match line.get(8..).map(str::trim) {
+            Some("map_Ns") | Some("map_ns") => match line.get(6..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
                 Some(tex) => cur_mat.shininess_texture = tex.to_owned(),
             },

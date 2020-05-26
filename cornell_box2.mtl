@@ -20,5 +20,6 @@ map_Ka dummy_texture.png
 map_Kd dummy_texture.png
 map_Ks dummy_texture.png
 map_Bump dummy_texture.png
+map_Ns dummy_texture.png
 map_d dummy_texture.png
 
