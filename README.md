@@ -2,8 +2,8 @@ tobj - Tiny OBJ Loader
 ===
 A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
 Aims to be a simple and lightweight option for loading OBJ files, just returns two vecs
-containing loaded models and materials. All models are made of triangles, any quad or polygon faces in an
-OBJ file will be converted to triangles. Note that only polygons that are trivially
+containing loaded models and materials. All models are made of triangles, quad or polygon faces in an
+OBJ file will be converted to triangles if desired, or left as n-gons if not. Note that only polygons that are trivially
 convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
 The best solution would be to re-export your mesh using only triangles in your modeling software.
 
