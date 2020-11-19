@@ -19,14 +19,15 @@ HashMap containing the key-value pairs of the unrecognized parameter and its val
 
 Documentation
 ---
-Rust doc can be found [here](http://www.willusher.io/tobj/tobj/).
+Rust doc can be found [here](https://docs.rs/tobj/).
 
 Installation
 ---
 Add the [crate](https://crates.io/crates/tobj) as a dependency in your Cargo.toml and you're all set!
 
 [![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
-[![Build Status](https://travis-ci.org/Twinklebear/tobj.svg?branch=master)](https://travis-ci.org/Twinklebear/tobj)
+![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
+
 
 Example
 ---

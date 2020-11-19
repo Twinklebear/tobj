@@ -5,7 +5,7 @@ authors = ["Will Usher <will@willusher.io>"]
 
 description = "A lightweight OBJ loader in the spirit of tinyobjloader"
 homepage = "https://github.com/Twinklebear/tobj"
-documentation = "http://www.willusher.io/tobj/tobj/"
+documentation = "https://docs.rs/tobj/"
 repository = "https://github.com/Twinklebear/tobj"
 readme = "README.md"
 keywords = ["obj", "wavefront", "graphics"]
