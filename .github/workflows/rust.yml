@@ -14,6 +14,8 @@ jobs:
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
+      - name: Cargo Format
+        run: cargo fmt -- --check
     build_windows:
       runs-on: windows-latest
       steps:
@@ -30,9 +32,3 @@ jobs:
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
-    check_format:
-      runs-on: ubuntu-latest
-      steps:
-      - uses: actions/checkout@v2
-      - name: Build
-        run: cargo fmt -- --check
