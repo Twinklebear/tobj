@@ -162,7 +162,7 @@ pub struct Mesh {
     /// all meshes have normals, if no normals are specified this Vec will be empty
     pub normals: Vec<f32>,
     /// Flattened 2 component floating point vectors, storing texture coordinates of vertices in
-    /// the mesh. Not all meshes have normals, if no texture coordinates are specified this Vec
+    /// the mesh. Not all meshes have texture coordinates, if no texture coordinates are specified this Vec
     /// will be empty
     pub texcoords: Vec<f32>,
     /// Indices for vertices of each triangle. If loaded with `triangulate_faces`, each face in the
