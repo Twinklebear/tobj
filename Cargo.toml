@@ -1,6 +1,6 @@
 [package]
 name = "tobj"
-version = "2.0.3"
+version = "2.0.4"
 authors = ["Will Usher <will@willusher.io>"]
 
 description = "A lightweight OBJ loader in the spirit of tinyobjloader"
