@@ -14,6 +14,7 @@ fn simple_triangle() {
     let m = tobj::load_obj("triangle.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     // We expect a single model with no materials
     assert_eq!(models.len(), 1);
     assert!(mats.is_empty());
@@ -37,6 +38,7 @@ fn empty_name_triangle() {
     let m = tobj::load_obj("empty_name_triangle.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     // We expect a single model with no materials
     assert_eq!(models.len(), 1);
     assert!(mats.is_empty());
@@ -60,6 +62,7 @@ fn test_lines() {
     let m = tobj::load_obj("lines.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     // We expect a single model with no materials
     assert_eq!(models.len(), 1);
     assert!(mats.is_empty());
@@ -83,6 +86,7 @@ fn non_triangulated_quad() {
     let m = tobj::load_obj("quad.obj", false);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     assert_eq!(models.len(), 3);
     assert!(mats.is_empty());
 
@@ -107,6 +111,7 @@ fn multiple_face_formats() {
     let m = tobj::load_obj("quad.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     assert_eq!(models.len(), 3);
     assert!(mats.is_empty());
 
@@ -329,6 +334,7 @@ fn test_cornell() {
     let m = tobj::load_obj("cornell_box.obj", true);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     assert_eq!(models.len(), 8);
     assert_eq!(mats.len(), 5);
     validate_cornell(models, mats);
@@ -345,6 +351,7 @@ fn test_custom_material_loader() {
     });
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     assert_eq!(models.len(), 8);
     assert_eq!(mats.len(), 5);
     validate_cornell(models, mats);
@@ -378,6 +385,7 @@ fn test_custom_material_loader_files() {
     });
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
     assert_eq!(models.len(), 8);
     assert_eq!(mats.len(), 5);
     validate_cornell(models, mats);

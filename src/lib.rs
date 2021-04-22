@@ -26,7 +26,11 @@
 //!
 //! let cornell_box = tobj::load_obj("cornell_box.obj", true);
 //! assert!(cornell_box.is_ok());
-//! let (models, materials) = cornell_box.unwrap();
+//! let (models, materials) = cornell_box.expect("Failed to load OBJ file");
+//! // Materials might report a separate loading error if the MTL file wasn't found.
+//! // If you don't need the materials, you can generate a default here and use that
+//! // instead.
+//! let materials = materials.expect("Failed to load MTL file");
 //!
 //! println!("# of models: {}", models.len());
 //! println!("# of materials: {}", materials.len());
@@ -324,7 +328,7 @@ impl Error for LoadError {}
 
 /// `LoadResult` is a result containing all the models loaded from the file and any materials from
 /// referenced material libraries, or an error that occured while loading
-pub type LoadResult = Result<(Vec<Model>, Vec<Material>), LoadError>;
+pub type LoadResult = Result<(Vec<Model>, Result<Vec<Material>, LoadError>), LoadError>;
 
 /// `MTLLoadResult` is a result containing all the materials loaded from the file and a map of MTL
 /// name to index or the error that occured while loading
@@ -672,6 +676,7 @@ where
     let mut name = "unnamed_object".to_owned();
     // material used by the current object being parsed
     let mut mat_id = None;
+    let mut mtlresult = Ok(Vec::new());
     for line in reader.lines() {
         let (line, mut words) = match line {
             Ok(ref line) => (&line[..], line[..].split_whitespace()),
@@ -746,7 +751,9 @@ where
                                 mat_map.insert(m.0, m.1 + mat_offset);
                             }
                         }
-                        Err(e) => return Err(e),
+                        Err(e) => {
+                            mtlresult = Err(e);
+                        }
                     }
                 } else {
                     return Err(LoadError::MaterialParseError);
@@ -798,7 +805,10 @@ where
         )?,
         name,
     ));
-    Ok((models, materials))
+    if !materials.is_empty() {
+        mtlresult = Ok(materials);
+    }
+    Ok((models, mtlresult))
 }
 
 /// Load the various materials in a MTL buffer
