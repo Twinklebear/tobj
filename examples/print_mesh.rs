@@ -7,7 +7,7 @@ fn main() {
         .skip(1)
         .next()
         .expect("A .obj file to print is required");
-    let (models, materials) = tobj::load_obj(&obj_file, false).expect("Failed to OBJ load file");
+    let (models, materials) = tobj::load_obj(&obj_file, false, false).expect("Failed to OBJ load file");
     // Note: If you don't mind missing the materials, you can generate a default
     let materials = materials.expect("Failed to load MTL file");
 
@@ -19,13 +19,13 @@ fn main() {
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 
         println!(
-            "Size of model[{}].num_face_indices: {}",
+            "Size of model[{}].face_arities: {}",
             i,
-            mesh.num_face_indices.len()
+            mesh.face_arities.len()
         );
         let mut next_face = 0;
-        for f in 0..mesh.num_face_indices.len() {
-            let end = next_face + mesh.num_face_indices[f] as usize;
+        for f in 0..mesh.face_arities.len() {
+            let end = next_face + mesh.face_arities[f] as usize;
             let face_indices: Vec<_> = mesh.indices[next_face..end].iter().collect();
             println!("    face[{}] = {:?}", f, face_indices);
             next_face = end;

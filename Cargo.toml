@@ -1,6 +1,7 @@
 [package]
 name = "tobj"
 version = "2.0.4"
+edition = "2018"
 authors = ["Will Usher <will@willusher.io>"]
 
 description = "A lightweight OBJ loader in the spirit of tinyobjloader"
@@ -12,10 +13,19 @@ keywords = ["obj", "wavefront", "graphics"]
 license = "MIT"
 
 exclude = [
-	"*.obj",
-	"*.mtl",
-	".travis.yml",
+    "*.obj",
+    "*.mtl",
+    ".travis.yml",
 ]
 
+[features]
+default = ["ahash"]
+nightly = []
+
 [dependencies]
-log = { version = "0.4.8", optional = true }
+log = { version = "0.4.14", optional = true }
+ahash = { version = "0.7.2", optional = true }
+
+[profile.dev]
+split-debuginfo = "unpacked"
+opt-level = 3
