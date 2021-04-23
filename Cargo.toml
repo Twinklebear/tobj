@@ -20,7 +20,7 @@ exclude = [
 
 [features]
 default = ["ahash"]
-nightly = []
+discard_trivial_indices = []
 
 [dependencies]
 log = { version = "0.4.14", optional = true }

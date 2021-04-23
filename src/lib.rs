@@ -104,7 +104,7 @@
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
 //!     style="display:block; max-width:100%; height:auto">
 //!
-#![cfg_attr(feature = "nightly", feature(is_sorted))]
+#![cfg_attr(feature = "discard_trivial_indices", feature(is_sorted))]
 #![feature(test)]
 
 extern crate test;
@@ -281,7 +281,6 @@ impl Default for Material {
             shininess: 0.0,
             dissolve: 1.0,
             optical_density: 1.0,
-            //..Default::default()
             ambient_texture: String::new(),
             diffuse_texture: String::new(),
             specular_texture: String::new(),
@@ -942,7 +941,7 @@ fn export_faces_multi_index(
 
     // Check for superfluous indices.
     // A superfluous index is one that is an interval of natural numbers – 0..n.
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "discard_trivial_indices")]
     if !texcoord.is_empty() {
         if mesh
             .texcoord_indices
@@ -959,7 +958,7 @@ fn export_faces_multi_index(
             mesh.texcoord_indices = None;
         }
     }
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "discard_trivial_indices")]
     if !normal.is_empty() {
         if mesh.normal_indices.as_ref().unwrap().is_sorted_by(|a, b| {
             if b - a == 1 {
