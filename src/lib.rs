@@ -35,7 +35,7 @@
 //!
 //! When a `Mesh` contains *per vertex per face* normals or texture coordinates,
 //! positions are duplicated to be *per vertex per face* too. This potentially
-//! changes the topology (faces may become disconnected in the even though their
+//! changes the topology (faces may become disconnected even though their
 //! vertices still share a position in space).
 //!
 //! Creation of separate indices for normals and texture coordinates can be

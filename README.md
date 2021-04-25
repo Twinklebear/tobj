@@ -34,8 +34,8 @@ this data is stored in the `indices` member.
 
 When a `Mesh` contains *per vertex per face* normals or texture coordinates,
 positions are duplicated to be *per vertex per face* too. This potentially changes
-the topology (faces may become disconnected in the even though their vertices
-still share a position in space).
+the topology (faces may become disconnected even though their vertices still share
+a position in space).
 
 Creation of separate indices for normals and texture coordinates can be
 requested. This also guarantees that the topology of the a mesh does not change
@@ -43,7 +43,7 @@ when the latter are specified *per vertex per face*.
 
 ## Materials
 
-Standard MTL attributes are supported too. Any unrecognized parameters will be
+Standard `MTL` attributes are supported too. Any unrecognized parameters will be
 stored in a `HashMap` containing the key-value pairs of the unrecognized
 parameter and its value.
 
