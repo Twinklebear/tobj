@@ -7,7 +7,8 @@ fn main() {
         .skip(1)
         .next()
         .expect("A .obj file to print is required");
-    let (models, materials) = tobj::load_obj(&obj_file, false, false).expect("Failed to OBJ load file");
+    let (models, materials) =
+        tobj::load_obj(&obj_file, false, false).expect("Failed to OBJ load file");
     // Note: If you don't mind missing the materials, you can generate a default
     let materials = materials.expect("Failed to load MTL file");
 
@@ -31,7 +32,8 @@ fn main() {
             next_face = end;
         }
 
-        // Normals and texture coordinates are also loaded, but not printed in this example
+        // Normals and texture coordinates are also loaded, but not printed in this
+        // example
         println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
         assert!(mesh.positions.len() % 3 == 0);
         for v in 0..mesh.positions.len() / 3 {

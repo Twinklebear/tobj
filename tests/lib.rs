@@ -1,7 +1,8 @@
-use std::env;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::Cursor;
+use std::{
+    env,
+    fs::File,
+    io::{BufReader, Cursor},
+};
 
 const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
 const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
@@ -57,7 +58,7 @@ fn empty_name_triangle() {
 
 #[test]
 fn test_lines() {
-    let m = tobj::load_obj("lines.obj", false, true);
+    let m = tobj::load_obj("lines.obj", false, false);
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -340,12 +341,13 @@ fn test_cornell() {
 
 #[test]
 fn test_custom_material_loader() {
-    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), false, true, |p| {
-        match p.to_str().unwrap() {
-            "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
-            "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
-            _ => unreachable!(),
-        }
+    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), false, true, |p| match p
+        .to_str()
+        .unwrap()
+    {
+        "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
+        "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+        _ => unreachable!(),
     });
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();

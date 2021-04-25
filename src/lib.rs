@@ -1,30 +1,65 @@
-//! Tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
-//! Aims to be a simple and lightweight option for loading OBJ files, just returns two vecs
-//! containing loaded models and materials. All models are made of triangles, any quad or polygon faces
-//! in an OBJ file will be converted to triangles. Note that only polygons that are trivially
-//! convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
-//! The best solution would be to re-export your mesh using only triangles in your modeling software.
+//! # Tiny OBJ Loader
 //!
-//! It is assumed that all meshes will at least have positions, but normals and texture coordinates
-//! are optional. If no normals or texture coordinates were found then the corresponding vecs for
-//! the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
-//! a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
-//! Indices are also loaded and may re-use vertices already existing in the mesh, this data is
-//! stored in the `indices` member.
+//! A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
+//! Aims to be a simple and lightweight option for loading OBJ files, just
+//! returns two `Vec`s containing loaded models and materials.
 //!
-//! Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
-//! `HashMap` containing the key-value pairs of the unrecognized parameter and its value.
+//! ## Triangulation
 //!
-//! # Example
-//! In this simple example we load the classic Cornell Box model that only defines positions and
-//! print out its attributes. This example is a slightly trimmed down version of `print_model_info`
-//! and `print_material_info` combined together, see them for a version that also prints out
-//! normals and texture coordinates if the model has them.
+//! Meshes can be triangulated on the fly or left as-is.
+//!
+//! Note that only polygons that are trivially convertible to triangle fans are
+//! supported, arbitrary polygons may not behave as expected. The best solution
+//! would be to re-export your mesh using only triangles in your modeling
+//! software.
+//!
+//! ## Optional – Normals & Texture Coordinates
+//!
+//! It is assumed that all meshes will at least have positions, but normals and
+//! texture coordinates are optional.
+//!
+//! If no normals or texture coordinates are found then the corresponding `Vec`s
+//! for the [`Mesh`] will be empty.
+//!
+//! ## Flat Data
+//!
+//! Values are stored packed as floats in flat `Vec`s.
+//!
+//! For example, the positions member of a `Mesh` will contain `[x, y, z, x, y,
+//! z, ...]` which you can then use however you like.
+//!
+//! ## Indices
+//!
+//! Indices are also loaded and may re-use vertices already existing in the
+//! mesh, this data is stored in the `indices` member.
+//!
+//! When a `Mesh` contains *per vertex per face* normals or texture coordinates,
+//! positions are duplicated to be *per vertex per face* too. This potentially
+//! changes the topology (faces may become disconnected in the even though their
+//! vertices still share a position in space).
+//!
+//! Creation of separate indices for normals and texture coordinates can be
+//! requested. This also guarantees that the topology of the a mesh does not
+//! changed when the latter are specified *per vertex per face*.
+//!
+//! # Materials
+//!
+//! Standard MTL attributes are supported too. Any unrecognized parameters will
+//! be stored in a `HashMap` containing the key-value pairs of the unrecognized
+//! parameter and its value.
+//!
+//! ## Example
+//!
+//! In this simple example we load the classic Cornell Box model that only
+//! defines positions and print out its attributes. This example is a slightly
+//! trimmed down version of `print_model_info` and `print_material_info`
+//! combined together, see them for a version that also prints out normals and
+//! texture coordinates if the model has them.
 //!
 //! ```
 //! use tobj;
 //!
-//! let cornell_box = tobj::load_obj("cornell_box.obj", false, true);
+//! let cornell_box = tobj::load_obj("cornell_box.obj", false, false);
 //! assert!(cornell_box.is_ok());
 //! let (models, materials) = cornell_box.expect("Failed to load OBJ file");
 //! // Materials might report a separate loading error if the MTL file wasn't found.
@@ -39,7 +74,11 @@
 //!     println!("model[{}].name = \'{}\'", i, m.name);
 //!     println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 //!
-//!     println!("Size of model[{}].face_arities: {}", i, mesh.face_arities.len());
+//!     println!(
+//!         "Size of model[{}].face_arities: {}",
+//!         i,
+//!         mesh.face_arities.len()
+//!     );
 //!     let mut next_face = 0;
 //!     for f in 0..mesh.face_arities.len() {
 //!         let end = next_face + mesh.face_arities[f] as usize;
@@ -52,19 +91,30 @@
 //!     println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
 //!     assert!(mesh.positions.len() % 3 == 0);
 //!     for v in 0..mesh.positions.len() / 3 {
-//!         println!("    v[{}] = ({}, {}, {})", v, mesh.positions[3 * v],
-//!         mesh.positions[3 * v + 1], mesh.positions[3 * v + 2]);
+//!         println!(
+//!             "    v[{}] = ({}, {}, {})",
+//!             v,
+//!             mesh.positions[3 * v],
+//!             mesh.positions[3 * v + 1],
+//!             mesh.positions[3 * v + 2]
+//!         );
 //!     }
 //! }
 //!
 //! for (i, m) in materials.iter().enumerate() {
 //!     println!("material[{}].name = \'{}\'", i, m.name);
-//!     println!("    material.Ka = ({}, {}, {})", m.ambient[0], m.ambient[1],
-//!     m.ambient[2]);
-//!     println!("    material.Kd = ({}, {}, {})", m.diffuse[0], m.diffuse[1],
-//!     m.diffuse[2]);
-//!     println!("    material.Ks = ({}, {}, {})", m.specular[0], m.specular[1],
-//!     m.specular[2]);
+//!     println!(
+//!         "    material.Ka = ({}, {}, {})",
+//!         m.ambient[0], m.ambient[1], m.ambient[2]
+//!     );
+//!     println!(
+//!         "    material.Kd = ({}, {}, {})",
+//!         m.diffuse[0], m.diffuse[1], m.diffuse[2]
+//!     );
+//!     println!(
+//!         "    material.Ks = ({}, {}, {})",
+//!         m.specular[0], m.specular[1], m.specular[2]
+//!     );
 //!     println!("    material.Ns = {}", m.shininess);
 //!     println!("    material.d = {}", m.dissolve);
 //!     println!("    material.map_Ka = {}", m.ambient_texture);
@@ -79,16 +129,18 @@
 //! }
 //! ```
 //!
-//! # Rendering Examples
+//! ## Rendering Examples
+//!
 //! For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer,
 //! check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer). Some sample images can be found in
 //! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v).
 //!
-//! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M vertices) and is loaded
-//! in ~7.47s using a peak of ~1.1GB of memory on a Windows 10 machine with an i7-4790k and 16GB of
-//! 1600Mhz DDR3 RAM with tobj 0.1.1 on rustc 1.6.0.
-//! The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
-//! was originally built by kescha. Future work will focus on improving performance and memory usage.
+//! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M
+//! vertices) and is loaded in ~7.47s using a peak of ~1.1GB of memory on a
+//! Windows 10 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM with tobj
+//! 0.1.1 on rustc 1.6.0. The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
+//! was originally built by kescha. Future work will focus on improving
+//! performance and memory usage.
 //!
 //! <img src="http://i.imgur.com/wImyNG4.png" alt="Rungholt"
 //!     style="display:block; max-width:100%; height:auto">
@@ -104,37 +156,51 @@
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
 //!     style="display:block; max-width:100%; height:auto">
 //!
+//! //! ## Features
+//!
+//! * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
+//!   for hashing when reading files/additional MTL properties.
+//!
+//!   To disable and use the slower [`std::collections::HashMap`] instead, unset
+//! default features in `Cargo.toml`:
+//!
+//!   ```toml
+//!   [dependencies.tobj]
+//!   default-features = false
+//!   ```
 #![feature(test)]
 
 extern crate test;
 
-use std::error::Error;
-use std::fmt;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::path::Path;
-use std::str::{FromStr, SplitWhitespace};
+use std::{
+    error::Error,
+    fmt,
+    fs::File,
+    io::{prelude::*, BufReader},
+    path::Path,
+    str::{FromStr, SplitWhitespace},
+};
 
 #[cfg(feature = "ahash")]
-type HashMap<K, V> = ahash::AHashMap<K, V>;
+pub type HashMap<K, V> = ahash::AHashMap<K, V>;
 
 #[cfg(not(feature = "ahash"))]
-type HashMap<K, V> = std::collections::HashMap<K, V>;
+pub type HashMap<K, V> = std::collections::HashMap<K, V>;
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
-/// It is assumed that all meshes will at least have positions, but normals and texture coordinates
-/// are optional. If no normals or texture coordinates where found then the corresponding vecs for
-/// the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
-/// a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
-/// Indices are also loaded and may re-use vertices already existing in the mesh, this data is
-/// stored in the `indices` member.
+/// It is assumed that all meshes will at least have positions, but normals and
+/// texture coordinates are optional. If no normals or texture coordinates where
+/// found then the corresponding vecs for the mesh will be empty. Values are
+/// stored packed as floats in vecs, eg. the positions member of a loaded mesh
+/// will contain `[x, y, z, x, y, z, ...]` which you can then use however you
+/// like. Indices are also loaded and may re-use vertices already existing in
+/// the mesh, this data is stored in the `indices` member.
 ///
 /// # Example:
-/// Load the Cornell box and get the attributes of the first vertex. It's assumed all meshes will
-/// have positions (required), but normals and texture coordinates are optional, in which case the
-/// corresponding Vec will be empty.
+/// Load the Cornell box and get the attributes of the first vertex. It's
+/// assumed all meshes will have positions (required), but normals and texture
+/// coordinates are optional, in which case the corresponding Vec will be empty.
 ///
 /// ```
 /// let cornell_box = tobj::load_obj("cornell_box.obj", false, true);
@@ -144,13 +210,19 @@ type HashMap<K, V> = std::collections::HashMap<K, V>;
 /// let mesh = &models[0].mesh;
 /// let i = mesh.indices[0] as usize;
 /// // pos = [x, y, z]
-/// let pos = [mesh.positions[i * 3], mesh.positions[i * 3 + 1],
-///             mesh.positions[i * 3 + 2]];
+/// let pos = [
+///     mesh.positions[i * 3],
+///     mesh.positions[i * 3 + 1],
+///     mesh.positions[i * 3 + 2],
+/// ];
 ///
 /// if !mesh.normals.is_empty() {
 ///     // normal = [x, y, z]
-///     let normal = [mesh.normals[i * 3], mesh.normals[i * 3 + 1],
-///                   mesh.normals[i * 3 + 2]];
+///     let normal = [
+///         mesh.normals[i * 3],
+///         mesh.normals[i * 3 + 1],
+///         mesh.normals[i * 3 + 2],
+///     ];
 /// }
 ///
 /// if !mesh.texcoords.is_empty() {
@@ -160,28 +232,43 @@ type HashMap<K, V> = std::collections::HashMap<K, V>;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Mesh {
-    /// Flattened 3 component floating point vectors, storing positions of vertices in the mesh
+    /// Flattened 3 component floating point vectors, storing positions of
+    /// vertices in the mesh
     pub positions: Vec<f32>,
-    /// Flattened 3 component floating point vectors, storing normals of vertices in the mesh. Not
-    /// all meshes have normals, if no normals are specified this Vec will be empty
+    /// Flattened 3 component floating point vectors, storing normals of
+    /// vertices in the mesh.
+    ///
+    /// Not all meshes have normals, if no normals are specified this `Vec` will
+    /// be empty.
     pub normals: Vec<f32>,
-    /// Flattened 2 component floating point vectors, storing texture coordinates of vertices in
-    /// the mesh. Not all meshes have texture coordinates, if no texture coordinates are specified this Vec
-    /// will be empty
+    /// Flattened 2 component floating point vectors, storing texture
+    /// coordinates of vertices in the mesh.
+    ///
+    /// Not all meshes have texture coordinates, if no texture coordinates are
+    /// specified this `Vec` will be empty.
     pub texcoords: Vec<f32>,
-    /// Indices for vertices of each face. If loaded with `triangulate_faces`, each face in the
-    /// mesh is a triangle, otherwise the `face_arities` vector indicates how many indices
-    /// are used by each face. The indices specify the position, normal and texture coordinate
-    /// for each vertex of the face.
+    /// Indices for vertices of each face. If loaded with `triangulate_faces`,
+    /// each face in the mesh is a triangle.
+    ///
+    /// Ootherwise the `face_arities vector indicates how many indices are used
+    /// by each face. The indices specify the position, normal and texture
+    /// coordinate for each vertex of the face.
     pub indices: Vec<u32>,
-    pub texcoord_indices: Option<Vec<u32>>,
-    pub normal_indices: Option<Vec<u32>>,
-    /// The number of vertices used by each face. When using non-triangulated faces, the offset
-    /// for the starting index of a face can be found by iterating through the `face_arities`
-    /// until reaching the desired face, accumulating the number of vertices used so far.
+    /// The number of vertices used by each face. Only filled when if loaded
+    /// with `triangulate_faces`.
+    ///
+    /// The offset for the starting index of a face can be found by iterating
+    /// through the `face_arities` until reaching the desired face, accumulating
+    /// the number of vertices used so far.
     pub face_arities: Vec<u32>,
-    /// Optional material id associated with this mesh. The material id indexes into the Vec of
-    /// Materials loaded from the associated MTL file
+    /// The indices for texture coordinates. Only filled if loaded with
+    /// `create_multiple_indices` `None` otherwise.
+    pub texcoord_indices: Vec<u32>,
+    /// The indices for normals. Only filled if loaded with `
+    /// `create_multiple_indices`. `None` otherwise.
+    pub normal_indices: Vec<u32>,
+    /// Optional material id associated with this mesh. The material id indexes
+    /// into the Vec of Materials loaded from the associated MTL file
     pub material_id: Option<usize>,
 }
 
@@ -193,16 +280,16 @@ impl Default for Mesh {
             normals: Vec::new(),
             texcoords: Vec::new(),
             indices: Vec::new(),
-            normal_indices: None,
-            texcoord_indices: None,
             face_arities: Vec::new(),
+            normal_indices: Vec::new(),
+            texcoord_indices: Vec::new(),
             material_id: None,
         }
     }
 }
 
-/// A named model within the file, associates some mesh with a name that was specified with an `o`
-/// or `g` keyword in the OBJ file
+/// A named model within the file, associates some mesh with a name that was
+/// specified with an `o` or `g` keyword in the OBJ file
 #[derive(Clone, Debug)]
 pub struct Model {
     /// Mesh used by the model containing its geometry
@@ -218,9 +305,11 @@ impl Model {
     }
 }
 
-/// A material that may be referenced by one or more meshes. Standard MTL attributes are supported.
-/// Any unrecognized parameters will be stored as key-value pairs in the `unknown_param` [`AHashMap`],
-/// which maps the unknown parameter to the value set for it.
+/// A material that may be referenced by one or more meshes. Standard MTL
+/// attributes are supported. Any unrecognized parameters will be stored as
+/// key-value pairs in the `unknown_param`
+/// [`HashMap`](std::collections::HashMap), which maps the unknown parameter to
+/// the value set for it.
 #[derive(Clone, Debug)]
 pub struct Material {
     /// Material name as specified in the MTL file
@@ -233,36 +322,38 @@ pub struct Material {
     pub specular: [f32; 3],
     /// Material shininess attribute
     pub shininess: f32,
-    /// Dissolve attribute is the alpha term for the material. Referred to as dissolve since that's
-    /// what the MTL file format docs refer to it as
+    /// Dissolve attribute is the alpha term for the material. Referred to as
+    /// dissolve since that's what the MTL file format docs refer to it as
     pub dissolve: f32,
-    /// Optical density also known as index of refraction. Called `optical_density` in the MTL specc.
-    /// Takes on a value between 0.001 and 10.0. 1.0 means light does not bend as it passed through
+    /// Optical density also known as index of refraction. Called
+    /// `optical_density` in the MTL specc. Takes on a value between 0.001
+    /// and 10.0. 1.0 means light does not bend as it passed through
     /// the object.
     pub optical_density: f32,
-    /// Name of the ambient texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file
+    /// Name of the ambient texture file for the material. No path is pre-pended
+    /// to the texture file names specified in the MTL file
     pub ambient_texture: String,
-    /// Name of the diffuse texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file
+    /// Name of the diffuse texture file for the material. No path is pre-pended
+    /// to the texture file names specified in the MTL file
     pub diffuse_texture: String,
-    /// Name of the specular texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file
+    /// Name of the specular texture file for the material. No path is
+    /// pre-pended to the texture file names specified in the MTL file
     pub specular_texture: String,
-    /// Name of the normal map texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file
+    /// Name of the normal map texture file for the material. No path is
+    /// pre-pended to the texture file names specified in the MTL file
     pub normal_texture: String,
-    /// Name of the shininess map texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file
+    /// Name of the shininess map texture file for the material. No path is
+    /// pre-pended to the texture file names specified in the MTL file
     pub shininess_texture: String,
-    /// Name of the alpha map texture file for the material. No path is pre-pended to the texture
-    /// file names specified in the MTL file. Referred to as dissolve to match the MTL file format
-    /// specification
+    /// Name of the alpha map texture file for the material. No path is
+    /// pre-pended to the texture file names specified in the MTL file.
+    /// Referred to as dissolve to match the MTL file format specification
     pub dissolve_texture: String,
-    /// The illumnination model to use for this material. The different illumnination models are
-    /// specified in http://paulbourke.net/dataformats/mtl/
+    /// The illumnination model to use for this material. The different
+    /// illumnination models are specified in the [MTL spec](http://paulbourke.net/dataformats/mtl/).
     pub illumination_model: Option<u8>,
-    /// Key value pairs of any unrecognized parameters encountered while parsing the material
+    /// Key value pairs of any unrecognized parameters encountered while parsing
+    /// the material
     pub unknown_param: HashMap<String, String>,
 }
 
@@ -330,12 +421,13 @@ impl fmt::Display for LoadError {
 
 impl Error for LoadError {}
 
-/// `LoadResult` is a result containing all the models loaded from the file and any materials from
-/// referenced material libraries, or an error that occured while loading
+/// `LoadResult` is a result containing all the models loaded from the file and
+/// any materials from referenced material libraries, or an error that occured
+/// while loading
 pub type LoadResult = Result<(Vec<Model>, Result<Vec<Material>, LoadError>), LoadError>;
 
-/// `MTLLoadResult` is a result containing all the materials loaded from the file and a map of MTL
-/// name to index or the error that occured while loading
+/// `MTLLoadResult` is a result containing all the materials loaded from the
+/// file and a map of MTL name to index or the error that occured while loading
 pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadError>;
 
 /// Struct storing indices corresponding to the vertex
@@ -353,8 +445,8 @@ static MISSING_INDEX: usize = usize::MAX;
 impl VertexIndices {
     /// Parse the vertex indices from the face string
     /// Valid face strings are those that are valid for a Wavefront OBJ file
-    /// Also handles relative face indices (negative values) which is why passing the number of
-    /// positions, texcoords and normals is required
+    /// Also handles relative face indices (negative values) which is why
+    /// passing the number of positions, texcoords and normals is required
     /// Returns None if the face string is invalid
     fn parse(
         face_str: &str,
@@ -393,7 +485,8 @@ impl VertexIndices {
     }
 }
 
-/// Enum representing either a quad or triangle face, storing indices for the face vertices
+/// Enum representing either a quad or triangle face, storing indices for the
+/// face vertices
 #[derive(Debug)]
 enum Face {
     Line(VertexIndices, VertexIndices),
@@ -402,8 +495,8 @@ enum Face {
     Polygon(Vec<VertexIndices>),
 }
 
-/// Parse the floatn information from the words, words is an iterator over the float strings
-/// Returns false if parsing failed
+/// Parse the floatn information from the words, words is an iterator over the
+/// float strings Returns false if parsing failed
 fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
@@ -431,8 +524,8 @@ fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
 }
 
 /// Parse vertex indices for a face and append it to the list of faces passed
-/// Also handles relative face indices (negative values) which is why passing the number of
-/// positions, texcoords and normals is required
+/// Also handles relative face indices (negative values) which is why passing
+/// the number of positions, texcoords and normals is required
 /// returns false if an error occured parsing the face
 fn parse_face(
     face_str: SplitWhitespace,
@@ -458,8 +551,9 @@ fn parse_face(
     true
 }
 
-/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the `index_map`)
-/// or appending the position, texcoord and normal as appropriate and creating a new vertex
+/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the
+/// `index_map`) or appending the position, texcoord and normal as appropriate
+/// and creating a new vertex
 fn add_vertex(
     mesh: &mut Mesh,
     index_map: &mut HashMap<VertexIndices, u32>,
@@ -504,7 +598,8 @@ fn add_vertex(
     Ok(())
 }
 
-/// Export a list of faces to a mesh and return it, optionally converting quads to tris.
+/// Export a list of faces to a mesh and return it, optionally converting quads
+/// to tris.
 fn export_faces(
     pos: &[f32],
     texcoord: &[f32],
@@ -517,31 +612,35 @@ fn export_faces(
     let mut mesh = Mesh::default();
     mesh.material_id = mat_id;
     for f in faces {
-        // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
-        // length triangle fan
+        // Optimized paths for Triangles and Quads, Polygon handles the general case of
+        // an unknown length triangle fan
         match *f {
             Face::Line(ref a, ref b) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                mesh.face_arities.push(2);
+                if triangulate_faces {
+                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                } else {
+                    mesh.face_arities.push(2);
+                }
             }
             Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                mesh.face_arities.push(3);
+                if !triangulate_faces {
+                    mesh.face_arities.push(3);
+                }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
                 if triangulate_faces {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                    mesh.face_arities.push(3);
 
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
-                    mesh.face_arities.push(3);
                 } else {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
@@ -558,7 +657,6 @@ fn export_faces(
                         add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                         add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
                         add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                        mesh.face_arities.push(3);
                         b = c;
                     }
                 } else {
@@ -573,8 +671,9 @@ fn export_faces(
     Ok(mesh)
 }
 
-/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the `index_set`)
-/// or appending the position, texcoord and normal as appropriate and creating a new vertex.
+/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the
+/// `index_map`) or appending the position, texcoord and normal as appropriate
+/// and creating a new vertex.
 #[inline]
 fn add_vertex_multi_index(
     mesh: &mut Mesh,
@@ -607,7 +706,7 @@ fn add_vertex_multi_index(
     }
 
     if !texcoord.is_empty() {
-        let texcoord_indices = mesh.texcoord_indices.as_mut().unwrap();
+        let texcoord_indices = &mut mesh.texcoord_indices;
 
         if MISSING_INDEX == vert.vt {
             // Special case: the very first vertex of the mesh has no index.
@@ -618,15 +717,16 @@ fn add_vertex_multi_index(
 
                 texcoord_indices.push(0);
                 texcoord_index_map.insert(0, 0);
-            // We use the previous index. Not great a fallback but less prone to cause issues.
-            // FIXME: we should probably check if the data is per vertex per face and if so
-            // calculate the average from adjacent face vertices.
+            // We use the previous index. Not great a fallback but less prone to
+            // cause issues. FIXME: we should probably check if the
+            // data is per vertex per face and if so calculate the
+            // average from adjacent face vertices.
             } else {
                 texcoord_indices.push(*texcoord_indices.last().unwrap());
             }
         } else {
             match texcoord_index_map.get(&vert.vt) {
-                Some(&index) => mesh.texcoord_indices.as_mut().unwrap().push(index as _),
+                Some(&index) => mesh.texcoord_indices.push(index as _),
                 None => {
                     let vt = vert.vt as usize;
 
@@ -638,7 +738,7 @@ fn add_vertex_multi_index(
                     mesh.texcoords.push(texcoord[vt * 2 + 1]);
 
                     let next = texcoord_index_map.len() as u32;
-                    mesh.texcoord_indices.as_mut().unwrap().push(next);
+                    mesh.texcoord_indices.push(next);
                     texcoord_index_map.insert(vt, next);
                 }
             }
@@ -646,7 +746,7 @@ fn add_vertex_multi_index(
     }
 
     if !normal.is_empty() {
-        let normal_indices = mesh.normal_indices.as_mut().unwrap();
+        let normal_indices = &mut mesh.normal_indices;
         // The index is sparse – we need to make up a value.
         if MISSING_INDEX == vert.vn {
             // Special case: the very first vertex of the mesh has no index.
@@ -658,9 +758,10 @@ fn add_vertex_multi_index(
 
                 normal_indices.push(0);
                 normal_index_map.insert(0, 0);
-            // We use the previous index. Not great a fallback but less prone to cause issues.
-            // FIXME: we should probably check if the data is per vertex per face and if so
-            // calculate the average from adjacent face vertices.
+            // We use the previous index. Not great a fallback but less prone to
+            // cause issues. FIXME: we should probably check if the
+            // data is per vertex per face and if so calculate the
+            // average from adjacent face vertices.
             } else {
                 normal_indices.push(*normal_indices.last().unwrap());
             }
@@ -689,7 +790,8 @@ fn add_vertex_multi_index(
     Ok(())
 }
 
-/// Export a list of faces to a mesh and return it, optionally converting quads to tris.
+/// Export a list of faces to a mesh and return it, optionally converting quads
+/// to tris.
 fn export_faces_multi_index(
     pos: &[f32],
     texcoord: &[f32],
@@ -698,29 +800,23 @@ fn export_faces_multi_index(
     mat_id: Option<usize>,
     triangulate_faces: bool,
 ) -> Result<Mesh, LoadError> {
-    let mut index_set = HashMap::new();
-    let mut normal_index_set = HashMap::new();
-    let mut texcoord_index_set = HashMap::new();
+    let mut index_map = HashMap::new();
+    let mut normal_index_map = HashMap::new();
+    let mut texcoord_index_map = HashMap::new();
 
     let mut mesh = Mesh::default();
-    if !texcoord.is_empty() {
-        mesh.texcoord_indices = Some(Vec::new())
-    }
-    if !normal.is_empty() {
-        mesh.normal_indices = Some(Vec::new())
-    }
     mesh.material_id = mat_id;
 
     for f in faces {
-        // Optimized paths for Triangles and Quads, Polygon handles the general case of an unknown
-        // length triangle fan
+        // Optimized paths for Triangles and Quads, Polygon handles the general case of
+        // an unknown length triangle fan
         match *f {
             Face::Line(ref a, ref b) => {
                 add_vertex_multi_index(
                     &mut mesh,
-                    &mut index_set,
-                    &mut normal_index_set,
-                    &mut texcoord_index_set,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
                     a,
                     pos,
                     texcoord,
@@ -728,22 +824,35 @@ fn export_faces_multi_index(
                 )?;
                 add_vertex_multi_index(
                     &mut mesh,
-                    &mut index_set,
-                    &mut normal_index_set,
-                    &mut texcoord_index_set,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
                     b,
                     pos,
                     texcoord,
                     normal,
                 )?;
-                mesh.face_arities.push(2);
+                if triangulate_faces {
+                    add_vertex_multi_index(
+                        &mut mesh,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
+                        b,
+                        pos,
+                        texcoord,
+                        normal,
+                    )?;
+                } else {
+                    mesh.face_arities.push(2);
+                }
             }
             Face::Triangle(ref a, ref b, ref c) => {
                 add_vertex_multi_index(
                     &mut mesh,
-                    &mut index_set,
-                    &mut normal_index_set,
-                    &mut texcoord_index_set,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
                     a,
                     pos,
                     texcoord,
@@ -751,9 +860,9 @@ fn export_faces_multi_index(
                 )?;
                 add_vertex_multi_index(
                     &mut mesh,
-                    &mut index_set,
-                    &mut normal_index_set,
-                    &mut texcoord_index_set,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
                     b,
                     pos,
                     texcoord,
@@ -761,23 +870,25 @@ fn export_faces_multi_index(
                 )?;
                 add_vertex_multi_index(
                     &mut mesh,
-                    &mut index_set,
-                    &mut normal_index_set,
-                    &mut texcoord_index_set,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
                     c,
                     pos,
                     texcoord,
                     normal,
                 )?;
-                mesh.face_arities.push(3);
+                if !triangulate_faces {
+                    mesh.face_arities.push(3);
+                }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
                 if triangulate_faces {
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         a,
                         pos,
                         texcoord,
@@ -785,9 +896,9 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         b,
                         pos,
                         texcoord,
@@ -795,21 +906,20 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         c,
                         pos,
                         texcoord,
                         normal,
                     )?;
-                    mesh.face_arities.push(3);
 
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         a,
                         pos,
                         texcoord,
@@ -817,9 +927,9 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         c,
                         pos,
                         texcoord,
@@ -827,21 +937,20 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         d,
                         pos,
                         texcoord,
                         normal,
                     )?;
-                    mesh.face_arities.push(3);
                 } else {
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         a,
                         pos,
                         texcoord,
@@ -849,9 +958,9 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         b,
                         pos,
                         texcoord,
@@ -859,9 +968,9 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         c,
                         pos,
                         texcoord,
@@ -869,9 +978,9 @@ fn export_faces_multi_index(
                     )?;
                     add_vertex_multi_index(
                         &mut mesh,
-                        &mut index_set,
-                        &mut normal_index_set,
-                        &mut texcoord_index_set,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
                         d,
                         pos,
                         texcoord,
@@ -887,9 +996,9 @@ fn export_faces_multi_index(
                     for c in indices.iter().skip(2) {
                         add_vertex_multi_index(
                             &mut mesh,
-                            &mut index_set,
-                            &mut normal_index_set,
-                            &mut texcoord_index_set,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
                             a,
                             pos,
                             texcoord,
@@ -897,9 +1006,9 @@ fn export_faces_multi_index(
                         )?;
                         add_vertex_multi_index(
                             &mut mesh,
-                            &mut index_set,
-                            &mut normal_index_set,
-                            &mut texcoord_index_set,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
                             b,
                             pos,
                             texcoord,
@@ -907,24 +1016,23 @@ fn export_faces_multi_index(
                         )?;
                         add_vertex_multi_index(
                             &mut mesh,
-                            &mut index_set,
-                            &mut normal_index_set,
-                            &mut texcoord_index_set,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
                             c,
                             pos,
                             texcoord,
                             normal,
                         )?;
-                        mesh.face_arities.push(3);
                         b = c;
                     }
                 } else {
                     for i in indices.iter() {
                         add_vertex_multi_index(
                             &mut mesh,
-                            &mut index_set,
-                            &mut normal_index_set,
-                            &mut texcoord_index_set,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
                             i,
                             pos,
                             texcoord,
@@ -972,8 +1080,9 @@ fn export_faces_multi_index(
     Ok(mesh)
 }
 
-/// Load the various objects specified in the OBJ file and any associated MTL file.
-/// Returns a pair of Vecs containing the loaded models and materials from the file.
+/// Load the various objects specified in the OBJ file and any associated MTL
+/// file. Returns a pair of Vecs containing the loaded models and materials from
+/// the file.
 pub fn load_obj<P>(
     file_name: P,
     create_multiple_indices: bool,
@@ -1008,8 +1117,8 @@ where
 }
 
 /// Load the materials defined in a MTL file
-/// Returns a pair with a `Vec` holding all loaded materials and a `HashMap` containing a mapping of
-/// material names to indices in the Vec.
+/// Returns a pair with a `Vec` holding all loaded materials and a `HashMap`
+/// containing a mapping of material names to indices in the Vec.
 pub fn load_mtl<P>(file_name: P) -> MTLLoadResult
 where
     P: AsRef<Path> + fmt::Debug,
@@ -1040,9 +1149,7 @@ where
 /// and uses a `Cursor` to provide a `BufRead` interface on the buffer.
 ///
 /// ```
-/// use std::env;
-/// use std::fs::File;
-/// use std::io::BufReader;
+/// use std::{env, fs::File, io::BufReader};
 ///
 /// let dir = env::current_dir().unwrap();
 /// let mut cornell_box_obj = dir.clone();
@@ -1060,11 +1167,11 @@ where
 ///         "cornell_box.mtl" => {
 ///             let f = File::open(cornell_box_mtl1.as_path()).unwrap();
 ///             tobj::load_mtl_buf(&mut BufReader::new(f))
-///         },
+///         }
 ///         "cornell_box2.mtl" => {
 ///             let f = File::open(cornell_box_mtl2.as_path()).unwrap();
 ///             tobj::load_mtl_buf(&mut BufReader::new(f))
-///         },
+///         }
 ///         _ => unreachable!(),
 ///     }
 /// });
@@ -1170,8 +1277,9 @@ where
                     let mat_file = Path::new(mtllib).to_path_buf();
                     match material_loader(mat_file.as_path()) {
                         Ok((mut mats, map)) => {
-                            // Merge the loaded material lib with any currently loaded ones, offsetting
-                            // the indices of the appended materials by our current length
+                            // Merge the loaded material lib with any currently loaded ones,
+                            // offsetting the indices of the appended
+                            // materials by our current length
                             let mat_offset = materials.len();
                             materials.append(&mut mats);
                             for m in map {
@@ -1230,8 +1338,9 @@ where
             Some(_) => {}
         }
     }
-    // For the last object in the file we won't encounter another object name to tell us when it's
-    // done, so if we're parsing an object push the last one on the list as well
+    // For the last object in the file we won't encounter another object name to
+    // tell us when it's done, so if we're parsing an object push the last one
+    // on the list as well
     models.push(Model::new(
         if create_multiple_indices {
             export_faces_multi_index(

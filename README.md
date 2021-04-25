@@ -1,38 +1,83 @@
-tobj - Tiny OBJ Loader
-===
+# `tobj` – Tiny OBJ Loader
+
 A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
-Aims to be a simple and lightweight option for loading OBJ files, just returns two vecs
-containing loaded models and materials. All models are made of triangles, quad or polygon faces in an
-OBJ file will be converted to triangles if desired, or left as n-gons if not. Note that only polygons that are trivially
-convertible to triangle fans are supported, arbitrary polygons may not behave as expected.
-The best solution would be to re-export your mesh using only triangles in your modeling software.
+Aims to be a simple and lightweight option for loading OBJ files, just returns
+two `Vec`s containing loaded models and materials.
 
-It is assumed that all meshes will at least have positions, but normals and texture coordinates
-are optional. If no normals or texture coordinates were found then the corresponding vecs for
-the mesh will be empty. Values are stored packed as floats in vecs, eg. the positions member of
-a loaded mesh will contain `[x, y, z, x, y, z, ...]` which you can then use however you like.
-Indices are also loaded and may re-use vertices already existing in the mesh, this data is
-stored in the `indices` member.
+## Triangulation
 
-Standard MTL attributes are supported as well and any unrecognized parameters will be stored in a
-HashMap containing the key-value pairs of the unrecognized parameter and its value.
+Meshes can be triangulated on the fly or left as-is.
 
-Documentation
----
-Rust doc can be found [here](https://docs.rs/tobj/).
+Note that only polygons that are trivially convertible to triangle fans are
+supported, arbitrary polygons may not behave as expected. The best solution
+would be to re-export your mesh using only triangles in your modeling software.
 
-Installation
----
-Add the [crate](https://crates.io/crates/tobj) as a dependency in your Cargo.toml and you're all set!
+## Optional – Normals & Texture Coordinates
+
+It is assumed that all meshes will at least have positions, but normals and
+texture coordinates are optional.
+
+If no normals or texture coordinates are found then the corresponding `Vec`s
+for the `Mesh` will be empty.
+
+## Flat Data
+
+Values are stored packed as floats in flat `Vec`s.
+
+For example, the positions member of a `Mesh` will contain `[x, y, z, x, y, z,
+...]` which you can then use however you like.
+
+## Indices
+
+Indices are also loaded and may re-use vertices already existing in the mesh,
+this data is stored in the `indices` member.
+
+When a `Mesh` contains *per vertex per face* normals or texture coordinates,
+positions are duplicated to be *per vertex per face* too. This potentially changes
+the topology (faces may become disconnected in the even though their vertices
+still share a position in space).
+
+Creation of separate indices for normals and texture coordinates can be
+requested. This also guarantees that the topology of the a mesh does not changed
+when the latter are specified *per vertex per face*.
+
+# Materials
+
+Standard MTL attributes are supported too. Any unrecognized parameters will be
+stored in a `HashMap` containing the key-value pairs of the unrecognized
+parameter and its value.
+
+## Features
+
+ * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
+   for hashing when reading files/additional MTL properties.
+
+   To disable and use the slower `std::collections::HashMap` instead, unset
+   default features in `Cargo.toml`:
+
+   ```toml
+   [dependencies.tobj]
+   default-features = false
+   ```
+
+## Documentation
+
+Rust docs can be found [here](https://docs.rs/tobj/).
+
+## Installation
+
+Add the [crate](https://crates.io/crates/tobj) as a dependency in your
+`Cargo.toml` and you're all set!
 
 [![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
 ![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
 
 
-Example
----
-The [print mesh example](examples/print_mesh.rs) (also below) loads an OBJ file from
-the command line and prints out some information about its faces, vertices, and materials.
+## Example
+
+The [print mesh example](examples/print_mesh.rs) (also below) loads an `OBJ`
+file from the command line and prints out some information about its faces,
+vertices, and materials.
 
 ```rust
 extern crate tobj;
@@ -109,25 +154,29 @@ fn main() {
 }
 ```
 
-Rendering Examples
----
-For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer, check out
-[tobj viewer](https://github.com/Twinklebear/tobj_viewer). A sample image from the viewer is shown below,
-the [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml) model can be found on Morgan McGuire's meshes
-page and was originally built by kescha.
+## Rendering Examples
 
-The Rungholt model is reasonably large (6.7M triangles, 12.3M vertices) and is loaded in ~7.47s
-using a peak of ~1.1GB of memory on a Windows 10 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM with
-tobj 0.1.1 on rustc 1.6.0.
+For an example of integration with [glium](https://github.com/tomaka/glium) to
+make a simple OBJ viewer, check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer).
+
+A sample image from the viewer is shown below, the [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml)
+model can be found on Morgan McGuire's meshes page and was originally built by
+kescha.
+
+The Rungholt model is reasonably large (6.7M triangles, 12.3M vertices) and is
+loaded in ~7.47s using a peak of ~1.1GB of memory on a Windows 10 machine with
+an i7-4790k and 16GB of 1600Mhz DDR3 RAM with `tobj 0.1.1` on `rustc 1.6.0`.
 
 ![Rungholt](http://i.imgur.com/wImyNG4.png)
 
 For an example of integration within a ray tracer, check out tray\_rust's
 [mesh module](https://github.com/Twinklebear/tray_rust/blob/master/src/geometry/mesh.rs).
-The Stanford Buddha and Dragon from the [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) both load quite quickly.
-The Rust logo model was made by
-[Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo). 
+
+The Stanford Buddha and Dragon from the [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/)
+both load quite quickly.
+
+The Rust logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
+
 The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 
 ![Rust Logo with friends](http://i.imgur.com/E1ylrZW.png)
-
