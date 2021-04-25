@@ -9,7 +9,7 @@
 //! Meshes can be triangulated on the fly or left as-is.
 //!
 //! Note that only polygons that are trivially convertible to triangle fans are
-//! supported, arbitrary polygons may not behave as expected. The best solution
+//! supported. Arbitrary polygons may not behave as expected. The best solution
 //! would be to re-export your mesh using only triangles in your modeling
 //! software.
 //!
@@ -42,7 +42,7 @@
 //! requested. This also guarantees that the topology of the a mesh does not
 //! changed when the latter are specified *per vertex per face*.
 //!
-//! # Materials
+//! ## Materials
 //!
 //! Standard MTL attributes are supported too. Any unrecognized parameters will
 //! be stored in a `HashMap` containing the key-value pairs of the unrecognized
@@ -156,7 +156,7 @@
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
 //!     style="display:block; max-width:100%; height:auto">
 //!
-//! //! ## Features
+//! ## Features
 //!
 //! * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
 //!   for hashing when reading files/additional MTL properties.
@@ -1083,6 +1083,23 @@ fn export_faces_multi_index(
 /// Load the various objects specified in the OBJ file and any associated MTL
 /// file. Returns a pair of Vecs containing the loaded models and materials from
 /// the file.
+///
+/// # Arguments
+///
+/// * `create_multiple_indices` - Create additional indices for normals and
+///   texture coordinates if those are present.
+///
+///   This also guarantees that the original topology in any [`Mesh`]'s
+/// `indices` member remains unchanged. I.e. connectivity information is
+/// retained.
+///
+///   The resulting data is then in a format suitable for offline renderers.
+/// Particular if intended to be rendered as a subdivison surface or with
+/// displacement shaders, specifying tihs flag will probably be mandatory.
+///
+/// * `triangulate_faces` – Triangulate faces. This will omit filling the
+///   `face_arities` `Vec` of any `Mesh`es the [`Model`] may contain. This is
+///   useful if the resulting data are to be used in a realtime context.
 pub fn load_obj<P>(
     file_name: P,
     create_multiple_indices: bool,

@@ -9,7 +9,7 @@ two `Vec`s containing loaded models and materials.
 Meshes can be triangulated on the fly or left as-is.
 
 Note that only polygons that are trivially convertible to triangle fans are
-supported, arbitrary polygons may not behave as expected. The best solution
+supported. Arbitrary polygons may not behave as expected. The best solution
 would be to re-export your mesh using only triangles in your modeling software.
 
 ## Optional – Normals & Texture Coordinates
@@ -41,7 +41,7 @@ Creation of separate indices for normals and texture coordinates can be
 requested. This also guarantees that the topology of the a mesh does not changed
 when the latter are specified *per vertex per face*.
 
-# Materials
+## Materials
 
 Standard MTL attributes are supported too. Any unrecognized parameters will be
 stored in a `HashMap` containing the key-value pairs of the unrecognized
