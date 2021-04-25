@@ -104,7 +104,6 @@
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
 //!     style="display:block; max-width:100%; height:auto">
 //!
-#![cfg_attr(feature = "discard_trivial_indices", feature(is_sorted))]
 #![feature(test)]
 
 extern crate test;
@@ -119,13 +118,9 @@ use std::str::{FromStr, SplitWhitespace};
 
 #[cfg(feature = "ahash")]
 type HashMap<K, V> = ahash::AHashMap<K, V>;
-#[cfg(feature = "ahash")]
-type HashSet<T> = ahash::AHashSet<T>;
 
 #[cfg(not(feature = "ahash"))]
 type HashMap<K, V> = std::collections::HashMap<K, V>;
-#[cfg(not(feature = "ahash"))]
-type HashSet<T> = std::collections::HashSet<T>;
 
 /// A mesh made up of triangles loaded from some OBJ file
 ///
@@ -174,7 +169,7 @@ pub struct Mesh {
     /// the mesh. Not all meshes have texture coordinates, if no texture coordinates are specified this Vec
     /// will be empty
     pub texcoords: Vec<f32>,
-    /// Indices for vertices of each triangle. If loaded with `triangulate_faces`, each face in the
+    /// Indices for vertices of each face. If loaded with `triangulate_faces`, each face in the
     /// mesh is a triangle, otherwise the `face_arities` vector indicates how many indices
     /// are used by each face. The indices specify the position, normal and texture coordinate
     /// for each vertex of the face.
@@ -583,31 +578,32 @@ fn export_faces(
 #[inline]
 fn add_vertex_multi_index(
     mesh: &mut Mesh,
-    index_set: &mut HashSet<usize>,
-    normal_index_set: &mut HashSet<usize>,
-    texcoord_index_set: &mut HashSet<usize>,
+    index_map: &mut HashMap<usize, u32>,
+    normal_index_map: &mut HashMap<usize, u32>,
+    texcoord_index_map: &mut HashMap<usize, u32>,
     vert: &VertexIndices,
     pos: &[f32],
     texcoord: &[f32],
     normal: &[f32],
 ) -> Result<(), LoadError> {
-    if index_set.contains(&(vert.v as _)) {
-        mesh.indices.push(vert.v as _);
-    } else {
-        let v = vert.v as usize;
+    match index_map.get(&vert.v) {
+        Some(&i) => mesh.indices.push(i),
+        None => {
+            let vertex = vert.v as usize;
 
-        if v * 3 + 2 >= pos.len() {
-            return Err(LoadError::FaceVertexOutOfBounds);
+            if vertex * 3 + 2 >= pos.len() {
+                return Err(LoadError::FaceVertexOutOfBounds);
+            }
+
+            // Add the vertex to the mesh.
+            mesh.positions.push(pos[vertex * 3]);
+            mesh.positions.push(pos[vertex * 3 + 1]);
+            mesh.positions.push(pos[vertex * 3 + 2]);
+
+            let next = index_map.len() as u32;
+            mesh.indices.push(next);
+            index_map.insert(vertex, next);
         }
-
-        // Add the vertex to the mesh.
-        mesh.positions.push(pos[v * 3]);
-        mesh.positions.push(pos[v * 3 + 1]);
-        mesh.positions.push(pos[v * 3 + 2]);
-
-        let next = index_set.len() as u32;
-        mesh.indices.push(next);
-        index_set.insert(v);
     }
 
     if !texcoord.is_empty() {
@@ -621,7 +617,7 @@ fn add_vertex_multi_index(
                 mesh.texcoords.push(texcoord[1]);
 
                 texcoord_indices.push(0);
-                texcoord_index_set.insert(0);
+                texcoord_index_map.insert(0, 0);
             // We use the previous index. Not great a fallback but less prone to cause issues.
             // FIXME: we should probably check if the data is per vertex per face and if so
             // calculate the average from adjacent face vertices.
@@ -629,21 +625,22 @@ fn add_vertex_multi_index(
                 texcoord_indices.push(*texcoord_indices.last().unwrap());
             }
         } else {
-            if texcoord_index_set.contains(&(vert.vt)) {
-                mesh.texcoord_indices.as_mut().unwrap().push(vert.vt as _);
-            } else {
-                let vt = vert.vt as usize;
+            match texcoord_index_map.get(&vert.vt) {
+                Some(&index) => mesh.texcoord_indices.as_mut().unwrap().push(index as _),
+                None => {
+                    let vt = vert.vt as usize;
 
-                if vt * 2 + 1 >= texcoord.len() {
-                    return Err(LoadError::FaceTexCoordOutOfBounds);
+                    if vt * 2 + 1 >= texcoord.len() {
+                        return Err(LoadError::FaceTexCoordOutOfBounds);
+                    }
+
+                    mesh.texcoords.push(texcoord[vt * 2]);
+                    mesh.texcoords.push(texcoord[vt * 2 + 1]);
+
+                    let next = texcoord_index_map.len() as u32;
+                    mesh.texcoord_indices.as_mut().unwrap().push(next);
+                    texcoord_index_map.insert(vt, next);
                 }
-
-                mesh.texcoords.push(texcoord[vt * 2]);
-                mesh.texcoords.push(texcoord[vt * 2 + 1]);
-
-                let next = texcoord_index_set.len() as u32;
-                mesh.texcoord_indices.as_mut().unwrap().push(next);
-                texcoord_index_set.insert(vt);
             }
         }
     }
@@ -660,7 +657,7 @@ fn add_vertex_multi_index(
                 mesh.normals.push(normal[2]);
 
                 normal_indices.push(0);
-                normal_index_set.insert(0);
+                normal_index_map.insert(0, 0);
             // We use the previous index. Not great a fallback but less prone to cause issues.
             // FIXME: we should probably check if the data is per vertex per face and if so
             // calculate the average from adjacent face vertices.
@@ -668,22 +665,23 @@ fn add_vertex_multi_index(
                 normal_indices.push(*normal_indices.last().unwrap());
             }
         } else {
-            if normal_index_set.contains(&(vert.vn)) {
-                normal_indices.push(vert.vn as _);
-            } else {
-                let vn = vert.vn as usize;
+            match normal_index_map.get(&vert.vn) {
+                Some(&index) => normal_indices.push(index as _),
+                None => {
+                    let vn = vert.vn as usize;
 
-                if vn * 3 + 2 >= normal.len() {
-                    return Err(LoadError::FaceNormalOutOfBounds);
+                    if vn * 3 + 2 >= normal.len() {
+                        return Err(LoadError::FaceNormalOutOfBounds);
+                    }
+
+                    mesh.normals.push(normal[vn * 3]);
+                    mesh.normals.push(normal[vn * 3 + 1]);
+                    mesh.normals.push(normal[vn * 3 + 2]);
+
+                    let next = normal_index_map.len() as u32;
+                    normal_indices.push(next);
+                    normal_index_map.insert(vn, next);
                 }
-
-                mesh.normals.push(normal[vn * 3]);
-                mesh.normals.push(normal[vn * 3 + 1]);
-                mesh.normals.push(normal[vn * 3 + 2]);
-
-                let next = normal_index_set.len() as u32;
-                normal_indices.push(next);
-                normal_index_set.insert(vn);
             }
         }
     }
@@ -700,9 +698,9 @@ fn export_faces_multi_index(
     mat_id: Option<usize>,
     triangulate_faces: bool,
 ) -> Result<Mesh, LoadError> {
-    let mut index_set = HashSet::new();
-    let mut normal_index_set = HashSet::new();
-    let mut texcoord_index_set = HashSet::new();
+    let mut index_set = HashMap::new();
+    let mut normal_index_set = HashMap::new();
+    let mut texcoord_index_set = HashMap::new();
 
     let mut mesh = Mesh::default();
     if !texcoord.is_empty() {
@@ -939,6 +937,7 @@ fn export_faces_multi_index(
         }
     }
 
+    /*
     // Check for superfluous indices.
     // A superfluous index is one that is an interval of natural numbers – 0..n.
     #[cfg(feature = "discard_trivial_indices")]
@@ -969,7 +968,7 @@ fn export_faces_multi_index(
         }) {
             mesh.normal_indices = None;
         }
-    }
+    }*/
     Ok(mesh)
 }
 
@@ -1093,6 +1092,7 @@ where
     // material used by the current object being parsed
     let mut mat_id = None;
     let mut mtlresult = Ok(Vec::new());
+
     for line in reader.lines() {
         let (line, mut words) = match line {
             Ok(ref line) => (&line[..], line[..].split_whitespace()),
