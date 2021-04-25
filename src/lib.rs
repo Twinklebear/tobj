@@ -1,7 +1,7 @@
 //! # Tiny OBJ Loader
 //!
-//! A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
-//! Aims to be a simple and lightweight option for loading OBJ files, just
+//! A tiny OBJ loader, inspired by Syoyo's excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
+//! Aims to be a simple and lightweight option for loading `OBJ` files. Just
 //! returns two `Vec`s containing loaded models and materials.
 //!
 //! ## Triangulation
@@ -18,20 +18,20 @@
 //! It is assumed that all meshes will at least have positions, but normals and
 //! texture coordinates are optional.
 //!
-//! If no normals or texture coordinates are found then the corresponding `Vec`s
-//! for the [`Mesh`] will be empty.
+//! If no normals or texture coordinates are found then the corresponding
+//! [`Vec`]s for the [`Mesh`] will be empty.
 //!
 //! ## Flat Data
 //!
-//! Values are stored packed as floats in flat `Vec`s.
+//! Values are stored packed as [`f32`]s in flat `Vec`s.
 //!
-//! For example, the positions member of a `Mesh` will contain `[x, y, z, x, y,
-//! z, ...]` which you can then use however you like.
+//! For example, the `positions` member of a `Mesh` will contain `[x, y, z, x,
+//! y, z, ...]` which you can then use however you like.
 //!
 //! ## Indices
 //!
 //! Indices are also loaded and may re-use vertices already existing in the
-//! mesh, this data is stored in the `indices` member.
+//! `Mesh`. This data is stored in the [`indices`](Mesh::indices) member.
 //!
 //! When a `Mesh` contains *per vertex per face* normals or texture coordinates,
 //! positions are duplicated to be *per vertex per face* too. This potentially
@@ -40,13 +40,13 @@
 //!
 //! Creation of separate indices for normals and texture coordinates can be
 //! requested. This also guarantees that the topology of the a mesh does not
-//! changed when the latter are specified *per vertex per face*.
+//! change when the latter are specified *per vertex per face*.
 //!
 //! ## Materials
 //!
-//! Standard MTL attributes are supported too. Any unrecognized parameters will
-//! be stored in a `HashMap` containing the key-value pairs of the unrecognized
-//! parameter and its value.
+//! Standard `MTL` attributes are supported too. Any unrecognized parameters
+//! will be stored in a `HashMap` containing the key-value pairs of the
+//! unrecognized parameter and its value.
 //!
 //! ## Example
 //!
@@ -159,7 +159,7 @@
 //! ## Features
 //!
 //! * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
-//!   for hashing when reading files/additional MTL properties.
+//!   for hashing when reading files/additional `MTL` properties.
 //!
 //!   To disable and use the slower [`std::collections::HashMap`] instead, unset
 //! default features in `Cargo.toml`:
@@ -187,20 +187,23 @@ pub type HashMap<K, V> = ahash::AHashMap<K, V>;
 #[cfg(not(feature = "ahash"))]
 pub type HashMap<K, V> = std::collections::HashMap<K, V>;
 
-/// A mesh made up of triangles loaded from some OBJ file
+/// A mesh made up of triangles loaded from some `OBJ` file.
 ///
 /// It is assumed that all meshes will at least have positions, but normals and
 /// texture coordinates are optional. If no normals or texture coordinates where
-/// found then the corresponding vecs for the mesh will be empty. Values are
-/// stored packed as floats in vecs, eg. the positions member of a loaded mesh
-/// will contain `[x, y, z, x, y, z, ...]` which you can then use however you
-/// like. Indices are also loaded and may re-use vertices already existing in
-/// the mesh, this data is stored in the `indices` member.
+/// found then the corresponding `Vec`s in the `Mesh` will be empty. Values are
+/// stored packed as [`f32`]s in  flat `Vec`s.
+///
+/// For examples the `positions` member of a loaded mesh will contain `[x, y, z,
+/// x, y, z, ...]` which you can then use however you like. Indices are also
+/// loaded and may re-use vertices already existing in the mesh. This data is
+/// stored in the `indices` member.
 ///
 /// # Example:
 /// Load the Cornell box and get the attributes of the first vertex. It's
 /// assumed all meshes will have positions (required), but normals and texture
-/// coordinates are optional, in which case the corresponding Vec will be empty.
+/// coordinates are optional, in which case the corresponding `Vec` will be
+/// empty.
 ///
 /// ```
 /// let cornell_box = tobj::load_obj("cornell_box.obj", false, true);
@@ -238,42 +241,43 @@ pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing normals of
     /// vertices in the mesh.
     ///
-    /// Not all meshes have normals, if no normals are specified this `Vec` will
+    /// Not all meshes have normals. If no normals are specified this will
     /// be empty.
     pub normals: Vec<f32>,
     /// Flattened 2 component floating point vectors, storing texture
     /// coordinates of vertices in the mesh.
     ///
-    /// Not all meshes have texture coordinates, if no texture coordinates are
-    /// specified this `Vec` will be empty.
+    /// Not all meshes have texture coordinates. If no texture coordinates are
+    /// specified this will be empty.
     pub texcoords: Vec<f32>,
-    /// Indices for vertices of each face. If loaded with `triangulate_faces`,
-    /// each face in the mesh is a triangle.
+    /// Indices for vertices of each face. If loaded with
+    /// [`triangulate_faces`](load_obj), each face in the mesh is a
+    /// triangle.
     ///
-    /// Ootherwise the `face_arities vector indicates how many indices are used
-    /// by each face. The indices specify the position, normal and texture
-    /// coordinate for each vertex of the face.
+    /// Ootherwise [`face_arities`](Mesh::face_arities) indicates how many
+    /// indices are used by each face. The indices specify the position,
+    /// normal and texture coordinate for each vertex of the face.
     pub indices: Vec<u32>,
-    /// The number of vertices used by each face. Only filled when if loaded
-    /// with `triangulate_faces`.
+    /// The number of vertices (arity) of each face. *Empty* if loaded with
+    /// `triangulate_faces`.
     ///
     /// The offset for the starting index of a face can be found by iterating
     /// through the `face_arities` until reaching the desired face, accumulating
     /// the number of vertices used so far.
     pub face_arities: Vec<u32>,
     /// The indices for texture coordinates. Only filled if loaded with
-    /// `create_multiple_indices` `None` otherwise.
+    /// [`create_multiple_indices`](load_obj). Empty otherwise.
     pub texcoord_indices: Vec<u32>,
-    /// The indices for normals. Only filled if loaded with `
-    /// `create_multiple_indices`. `None` otherwise.
+    /// The indices for normals. Only filled if loaded with
+    /// `create_multiple_indices`. Empty otherwise.
     pub normal_indices: Vec<u32>,
     /// Optional material id associated with this mesh. The material id indexes
-    /// into the Vec of Materials loaded from the associated MTL file
+    /// into the Vec of Materials loaded from the associated `MTL` file
     pub material_id: Option<usize>,
 }
 
 impl Default for Mesh {
-    /// Create a new empty mesh
+    /// Create a new, empty mesh
     fn default() -> Self {
         Self {
             positions: Vec::new(),
@@ -288,69 +292,69 @@ impl Default for Mesh {
     }
 }
 
-/// A named model within the file, associates some mesh with a name that was
-/// specified with an `o` or `g` keyword in the OBJ file
+/// A named model within the file.
+///
+/// Associates some mesh with a name that was specified with an `o` or `g`
+/// keyword in the `OBJ` file.
 #[derive(Clone, Debug)]
 pub struct Model {
-    /// Mesh used by the model containing its geometry
+    /// [`Mesh`] used by the model containing its geometry.
     pub mesh: Mesh,
-    /// Name assigned to this mesh
+    /// Name assigned to this `Mesh`.
     pub name: String,
 }
 
 impl Model {
-    /// Create a new model, associating a name with a mesh
+    /// Create a new model, associating a name with a [`Mesh`].
     pub fn new(mesh: Mesh, name: String) -> Model {
         Model { mesh, name }
     }
 }
 
-/// A material that may be referenced by one or more meshes. Standard MTL
-/// attributes are supported. Any unrecognized parameters will be stored as
-/// key-value pairs in the `unknown_param`
+/// A material that may be referenced by one or more [`Mesh`]es.
+///
+/// Standard `MTL` attributes are supported. Any unrecognized parameters will be
+/// stored as key-value pairs in the `unknown_param`
 /// [`HashMap`](std::collections::HashMap), which maps the unknown parameter to
 /// the value set for it.
+///
+/// No path is pre-pended to the texture file names specified in the `MTL` file.
 #[derive(Clone, Debug)]
 pub struct Material {
-    /// Material name as specified in the MTL file
+    /// Material name as specified in the `MTL` file.
     pub name: String,
-    /// Ambient color of the material
+    /// Ambient color of the material.
     pub ambient: [f32; 3],
-    /// Diffuse color of the material
+    /// Diffuse color of the material.
     pub diffuse: [f32; 3],
-    /// Specular color of the material
+    /// Specular color of the material.
     pub specular: [f32; 3],
-    /// Material shininess attribute
+    /// Material shininess attribute. Also called `glossiness`.
     pub shininess: f32,
     /// Dissolve attribute is the alpha term for the material. Referred to as
-    /// dissolve since that's what the MTL file format docs refer to it as
+    /// dissolve since that's what the `MTL` file format docs refer to it as
     pub dissolve: f32,
     /// Optical density also known as index of refraction. Called
-    /// `optical_density` in the MTL specc. Takes on a value between 0.001
-    /// and 10.0. 1.0 means light does not bend as it passed through
+    /// `optical_density` in the `MTL` specc. Takes on a value between 0.001
+    /// and 10.0. 1.0 means light does not bend as it passes through
     /// the object.
     pub optical_density: f32,
-    /// Name of the ambient texture file for the material. No path is pre-pended
-    /// to the texture file names specified in the MTL file
+    /// Name of the ambient texture file for the material
     pub ambient_texture: String,
-    /// Name of the diffuse texture file for the material. No path is pre-pended
-    /// to the texture file names specified in the MTL file
+    /// Name of the diffuse texture file for the material.
     pub diffuse_texture: String,
-    /// Name of the specular texture file for the material. No path is
-    /// pre-pended to the texture file names specified in the MTL file
+    /// Name of the specular texture file for the material.
     pub specular_texture: String,
-    /// Name of the normal map texture file for the material. No path is
-    /// pre-pended to the texture file names specified in the MTL file
+    /// Name of the normal map texture file for the material.
     pub normal_texture: String,
-    /// Name of the shininess map texture file for the material. No path is
-    /// pre-pended to the texture file names specified in the MTL file
+    /// Name of the shininess map texture file for the material.
     pub shininess_texture: String,
-    /// Name of the alpha map texture file for the material. No path is
-    /// pre-pended to the texture file names specified in the MTL file.
-    /// Referred to as dissolve to match the MTL file format specification
+    /// Name of the alpha/opacity map texture file for the material.
+    ///
+    /// Referred to as `dissolve` to match the `MTL` file format specification.
     pub dissolve_texture: String,
     /// The illumnination model to use for this material. The different
-    /// illumnination models are specified in the [MTL spec](http://paulbourke.net/dataformats/mtl/).
+    /// illumnination models are specified in the [`MTL` spec](http://paulbourke.net/dataformats/mtl/).
     pub illumination_model: Option<u8>,
     /// Key value pairs of any unrecognized parameters encountered while parsing
     /// the material
@@ -379,7 +383,7 @@ impl Default for Material {
     }
 }
 
-/// Possible errors that may occur while loading OBJ and MTL files
+/// Possible errors that may occur while loading `OBJ` and `MTL` files.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LoadError {
     OpenFileFailed,
@@ -421,18 +425,19 @@ impl fmt::Display for LoadError {
 
 impl Error for LoadError {}
 
-/// `LoadResult` is a result containing all the models loaded from the file and
-/// any materials from referenced material libraries, or an error that occured
-/// while loading
+/// A [`Result`] containing all the models loaded from the file and any
+/// materials from referenced material libraries. Or an error that occured while
+/// loading.
 pub type LoadResult = Result<(Vec<Model>, Result<Vec<Material>, LoadError>), LoadError>;
 
-/// `MTLLoadResult` is a result containing all the materials loaded from the
-/// file and a map of MTL name to index or the error that occured while loading
+/// A [`Result`] containing all the materials loaded from the file and a map of
+/// `MTL` name to index. Or an error that occured while loading.
 pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadError>;
 
-/// Struct storing indices corresponding to the vertex
-/// Some vertices may not have texcoords or normals, 0 is used to indicate this
-/// as OBJ indices begin at 1
+/// Struct storing indices corresponding to the vertex.
+///
+/// Some vertices may not have texture coordinates or normals, 0 is used to
+/// indicate this as OBJ indices begin at 1
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Copy, Clone)]
 struct VertexIndices {
     pub v: usize,
@@ -443,11 +448,14 @@ struct VertexIndices {
 static MISSING_INDEX: usize = usize::MAX;
 
 impl VertexIndices {
-    /// Parse the vertex indices from the face string
-    /// Valid face strings are those that are valid for a Wavefront OBJ file
+    /// Parse the vertex indices from the face string.
+    ///
+    /// Valid face strings are those that are valid for a Wavefront `OBJ` file.
+    ///
     /// Also handles relative face indices (negative values) which is why
-    /// passing the number of positions, texcoords and normals is required
-    /// Returns None if the face string is invalid
+    /// passing the number of positions, texcoords and normals is required.
+    ///
+    /// Returns `None` if the face string is invalid.
     fn parse(
         face_str: &str,
         pos_sz: usize,
@@ -457,7 +465,7 @@ impl VertexIndices {
         let mut indices = [MISSING_INDEX; 3];
         for i in face_str.split('/').enumerate() {
             // Catch case of v//vn where we'll find an empty string in one of our splits
-            // since there are no texcoords for the mesh
+            // since there are no texcoords for the mesh.
             if !i.1.is_empty() {
                 match isize::from_str(i.1) {
                     Ok(x) => {
@@ -486,7 +494,7 @@ impl VertexIndices {
 }
 
 /// Enum representing either a quad or triangle face, storing indices for the
-/// face vertices
+/// face vertices.
 #[derive(Debug)]
 enum Face {
     Line(VertexIndices, VertexIndices),
@@ -495,8 +503,8 @@ enum Face {
     Polygon(Vec<VertexIndices>),
 }
 
-/// Parse the floatn information from the words, words is an iterator over the
-/// float strings Returns false if parsing failed
+/// Parse the float information from the words. Words is an iterator over the
+/// float strings. Returns `false` if parsing failed.
 fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str {
@@ -508,7 +516,7 @@ fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool
             Err(_) => return false,
         }
     }
-    // Require that we found the desired number of floats
+    // Require that we found the desired number of f32s.
     sz + n == vals.len()
 }
 
@@ -523,10 +531,12 @@ fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
     true
 }
 
-/// Parse vertex indices for a face and append it to the list of faces passed
+/// Parse vertex indices for a face and append it to the list of faces passed.
+///
 /// Also handles relative face indices (negative values) which is why passing
-/// the number of positions, texcoords and normals is required
-/// returns false if an error occured parsing the face
+/// the number of positions, texcoords and normals is required.
+///
+/// Returns `false` if an error occured parsing the face.
 fn parse_face(
     face_str: SplitWhitespace,
     faces: &mut Vec<Face>,
@@ -551,9 +561,9 @@ fn parse_face(
     true
 }
 
-/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the
-/// `index_map`) or appending the position, texcoord and normal as appropriate
-/// and creating a new vertex
+/// Add a vertex to a mesh by either re-using an existing index (e.g. it's in
+/// the `index_map`) or appending the position, texcoord and normal as
+/// appropriate and creating a new vertex.
 fn add_vertex(
     mesh: &mut Mesh,
     index_map: &mut HashMap<VertexIndices, u32>,
@@ -613,7 +623,7 @@ fn export_faces(
     mesh.material_id = mat_id;
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of
-        // an unknown length triangle fan
+        // an unknown length triangle fan.
         match *f {
             Face::Line(ref a, ref b) => {
                 add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
@@ -671,9 +681,9 @@ fn export_faces(
     Ok(mesh)
 }
 
-/// Add a vertex to a mesh by either re-using an existing index (eg. it's in the
-/// `index_map`) or appending the position, texcoord and normal as appropriate
-/// and creating a new vertex.
+/// Add a vertex to a mesh by either re-using an existing index (e.g. it's in
+/// the `index_map`) or appending the position, texcoord and normal as
+/// appropriate and creating a new vertex.
 #[inline]
 fn add_vertex_multi_index(
     mesh: &mut Mesh,
@@ -1045,44 +1055,12 @@ fn export_faces_multi_index(
         }
     }
 
-    /*
-    // Check for superfluous indices.
-    // A superfluous index is one that is an interval of natural numbers – 0..n.
-    #[cfg(feature = "discard_trivial_indices")]
-    if !texcoord.is_empty() {
-        if mesh
-            .texcoord_indices
-            .as_ref()
-            .unwrap()
-            .is_sorted_by(|a, b| {
-                if b - a == 1 {
-                    Some(std::cmp::Ordering::Less)
-                } else {
-                    None
-                }
-            })
-        {
-            mesh.texcoord_indices = None;
-        }
-    }
-    #[cfg(feature = "discard_trivial_indices")]
-    if !normal.is_empty() {
-        if mesh.normal_indices.as_ref().unwrap().is_sorted_by(|a, b| {
-            if b - a == 1 {
-                Some(std::cmp::Ordering::Less)
-            } else {
-                None
-            }
-        }) {
-            mesh.normal_indices = None;
-        }
-    }*/
     Ok(mesh)
 }
 
-/// Load the various objects specified in the OBJ file and any associated MTL
-/// file. Returns a pair of Vecs containing the loaded models and materials from
-/// the file.
+/// Load the various objects specified in the `OBJ` file and any associated
+/// `MTL` file. Returns a pair of `Vec`s containing the loaded models and
+/// materials from the file.
 ///
 /// # Arguments
 ///
@@ -1094,12 +1072,15 @@ fn export_faces_multi_index(
 /// retained.
 ///
 ///   The resulting data is then in a format suitable for offline renderers.
-/// Particular if intended to be rendered as a subdivison surface or with
-/// displacement shaders, specifying tihs flag will probably be mandatory.
+/// If intended to be rendered as a subdivison surface or with displacement
+/// shaders, specifying this flag will probably be mandatory.
 ///
 /// * `triangulate_faces` – Triangulate faces. This will omit filling the
 ///   `face_arities` `Vec` of any `Mesh`es the [`Model`] may contain. This is
 ///   useful if the resulting data are to be used in a realtime context.
+///
+///   A side effect of this flag is that 'line' like faces (with two vertices)
+/// will be expanded to triangles by duplicating the last vertex.
 pub fn load_obj<P>(
     file_name: P,
     create_multiple_indices: bool,
@@ -1133,7 +1114,8 @@ where
     )
 }
 
-/// Load the materials defined in a MTL file
+/// Load the materials defined in a `MTL` file.
+///
 /// Returns a pair with a `Vec` holding all loaded materials and a `HashMap`
 /// containing a mapping of material names to indices in the Vec.
 pub fn load_mtl<P>(file_name: P) -> MTLLoadResult
@@ -1152,14 +1134,22 @@ where
     load_mtl_buf(&mut reader)
 }
 
-/// Load the various meshes in an OBJ buffer of some kind, e.g. a
-/// network stream, text file already in memory or so on.
+/// Load the various meshes in an `OBJ` buffer of some kind.
 ///
-/// You must pass a "material loader" function, which will return a material
-/// given a name. A trivial material loader may just look at the file
-/// name and then call `load_mtl_buf` with the in-memory MTL file source.
-/// Alternatively it could pass an MTL file in memory to `load_mtl_buf` to
+/// This could e.g. be a network stream, a text file already in memory etc.
+///
+/// # Arguments
+///
+/// You must pass a `material_loader` function, which will return a material
+/// given a name.
+///
+/// A trivial material loader may just look at the file name and then call
+/// `load_mtl_buf` with the in-memory MTL file source.
+///
+/// Alternatively it could pass an `MTL` file in memory to `load_mtl_buf` to
 /// parse materials from some buffer.
+///
+/// For flags see [`load_obj`].
 ///
 /// # Example
 /// The test for `load_obj_buf` includes the OBJ and MTL files as strings
@@ -1386,7 +1376,7 @@ where
     Ok((models, mtlresult))
 }
 
-/// Load the various materials in a MTL buffer.
+/// Load the various materials in a `MTL` buffer.
 pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();

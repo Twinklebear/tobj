@@ -1,7 +1,7 @@
 # `tobj` – Tiny OBJ Loader
 
-A tiny OBJ loader, inspired by Syoyo's excellent [tinyobjloader](https://github.com/syoyo/tinyobjloader).
-Aims to be a simple and lightweight option for loading OBJ files, just returns
+Inspired by Syoyo's excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
+Aims to be a simple and lightweight option for loading `OBJ` files. Just returns
 two `Vec`s containing loaded models and materials.
 
 ## Triangulation
@@ -24,7 +24,7 @@ for the `Mesh` will be empty.
 
 Values are stored packed as floats in flat `Vec`s.
 
-For example, the positions member of a `Mesh` will contain `[x, y, z, x, y, z,
+For example, the `positions` member of a `Mesh` will contain `[x, y, z, x, y, z,
 ...]` which you can then use however you like.
 
 ## Indices
@@ -38,7 +38,7 @@ the topology (faces may become disconnected in the even though their vertices
 still share a position in space).
 
 Creation of separate indices for normals and texture coordinates can be
-requested. This also guarantees that the topology of the a mesh does not changed
+requested. This also guarantees that the topology of the a mesh does not change
 when the latter are specified *per vertex per face*.
 
 ## Materials
