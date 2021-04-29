@@ -8,7 +8,7 @@ fn main() {
         .next()
         .expect("A .obj file to print is required");
     let (models, materials) =
-        tobj::load_obj(&obj_file, false, false).expect("Failed to OBJ load file");
+        tobj::load_obj(&obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
     // Note: If you don't mind missing the materials, you can generate a default
     let materials = materials.expect("Failed to load MTL file");
 
