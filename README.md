@@ -80,29 +80,30 @@ file from the command line and prints out some information about its faces,
 vertices, and materials.
 
 ```rust
-extern crate tobj;
-
-use std::env;
+use tobj;
 
 fn main() {
-    let obj_file = env::args()
+    let obj_file = std::env::args()
         .skip(1)
         .next()
         .expect("A .obj file to print is required");
+
     let (models, materials) = tobj::load_obj(&obj_file, false).expect("Failed to load file");
 
     println!("# of models: {}", models.len());
     println!("# of materials: {}", materials.len());
+
     for (i, m) in models.iter().enumerate() {
         let mesh = &m.mesh;
+
         println!("model[{}].name = \'{}\'", i, m.name);
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
-
         println!(
             "Size of model[{}].num_face_indices: {}",
             i,
             mesh.num_face_indices.len()
         );
+
         let mut next_face = 0;
         for f in 0..mesh.num_face_indices.len() {
             let end = next_face + mesh.num_face_indices[f] as usize;
@@ -114,6 +115,7 @@ fn main() {
         // Normals and texture coordinates are also loaded, but not printed in this example
         println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
         assert!(mesh.positions.len() % 3 == 0);
+
         for v in 0..mesh.positions.len() / 3 {
             println!(
                 "    v[{}] = ({}, {}, {})",
@@ -147,6 +149,7 @@ fn main() {
         println!("    material.map_Ns = {}", m.shininess_texture);
         println!("    material.map_Bump = {}", m.normal_texture);
         println!("    material.map_d = {}", m.dissolve_texture);
+
         for (k, v) in &m.unknown_param {
             println!("    material.{} = {}", k, v);
         }
