@@ -1300,7 +1300,7 @@ fn merge_identical_points(mesh: &mut Mesh) {
         match canonical_indices.get(&bitpattern) {
             Some(&other_index) => compressed_indicess.push(other_index),
             None => {
-                let other_index = compressed_positions.len() as u32;
+                let other_index = (compressed_positions.len() / 3) as u32;
                 canonical_indices.insert(bitpattern, other_index);
                 compressed_indicess.push(other_index);
                 compressed_positions.push(position[0]);
