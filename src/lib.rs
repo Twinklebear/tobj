@@ -185,6 +185,8 @@
 //! * `rordering` – Adds support for reordering the normal- and texture
 //!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
 #![feature(test)]
+#![feature(const_generics)]
+#![feature(const_evaluatable_checked)]
 
 extern crate test;
 
@@ -201,7 +203,6 @@ use std::{
 use std::mem::size_of;
 
 #[cfg(feature = "merging")]
-#[macro_use]
 extern crate slice_as_array;
 
 #[cfg(feature = "ahash")]
@@ -1189,7 +1190,9 @@ fn export_faces_multi_index(
 
     #[cfg(feature = "merging")]
     if load_options.merge_identical_points {
-        merge_identical_points(&mut mesh);
+        merge_identical_points::<3>(&mut mesh.positions, &mut mesh.indices);
+        merge_identical_points::<3>(&mut mesh.normals, &mut mesh.normal_indices);
+        merge_identical_points::<2>(&mut mesh.texcoords, &mut mesh.texcoord_indices);
     }
 
     #[cfg(feature = "reordering")]
@@ -1201,6 +1204,7 @@ fn export_faces_multi_index(
 }
 
 #[cfg(feature = "reordering")]
+#[inline]
 fn reorder_data(mesh: &mut Mesh) {
     // If we have per face per vertex data for UVs ...
     if mesh.positions.len() < mesh.texcoords.len() {
@@ -1274,27 +1278,35 @@ fn reorder_data(mesh: &mut Mesh) {
 }
 
 #[cfg(feature = "merging")]
-fn merge_identical_points(mesh: &mut Mesh) {
+#[inline]
+fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut Vec<u32>)
+    where [(); size_of::<[f32; N]>()]:
+{
+    if indices.is_empty() {
+        return;
+    }
+
     let mut compressed_indicess = Vec::new();
-    let mut canonical_indices = HashMap::<[u8; size_of::<[f32; 3]>()], u32>::new();
+    let mut canonical_indices = HashMap::<[u8; size_of::<[f32; N]>()], u32>::new();
 
     let mut index = 0;
-    mesh.positions = mesh
-        .positions
-        .chunks(3)
+    *points = points
+        .chunks(N)
         .filter_map(|position| {
-            let position = slice_as_array!(position, [f32; 3]).unwrap();
+            //let position = slice_as_array!(position, [f32; N]).unwrap();
+            let position: &[f32; N] = unsafe { std::mem::transmute(position.as_ptr()) };
+
             // Ugly, but f32 has no Eq and no Hash.
             let bitpattern =
-                unsafe { std::mem::transmute::<[f32; 3], [u8; size_of::<[f32; 3]>()]>(*position) };
+                unsafe { std::mem::transmute::<&[f32; N], &[u8; size_of::<[f32; N]>()]>(position) };
 
-            match canonical_indices.get(&bitpattern) {
+            match canonical_indices.get(bitpattern) {
                 Some(&other_index) => {
                     compressed_indicess.push(other_index);
                     None
                 }
                 None => {
-                    canonical_indices.insert(bitpattern, index);
+                    canonical_indices.insert(*bitpattern, index);
                     compressed_indicess.push(index);
                     index += 1;
                     Some(std::array::IntoIter::new(*position))
@@ -1304,7 +1316,7 @@ fn merge_identical_points(mesh: &mut Mesh) {
         .flatten()
         .collect();
 
-    mesh.indices
+    indices
         .iter_mut()
         .for_each(|vertex| *vertex = compressed_indicess[*vertex as usize]);
 }
