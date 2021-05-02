@@ -732,8 +732,11 @@ fn export_faces(
     load_options: &LoadOptions,
 ) -> Result<Mesh, LoadError> {
     let mut index_map = HashMap::new();
-    let mut mesh = Mesh::default();
-    mesh.material_id = mat_id;
+    let mut mesh = Mesh {
+        material_id: mat_id,
+        ..Default::default()
+    };
+
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of
         // an unknown length triangle fan.
@@ -765,18 +768,15 @@ fn export_faces(
                 }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
-                if load_options.triangulate {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
 
+                if load_options.triangulate {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
                 } else {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
                     mesh.face_arities.push(4);
                 }
@@ -937,8 +937,11 @@ fn export_faces_multi_index(
     let mut normal_index_map = HashMap::new();
     let mut texcoord_index_map = HashMap::new();
 
-    let mut mesh = Mesh::default();
-    mesh.material_id = mat_id;
+    let mut mesh = Mesh {
+        material_id: mat_id,
+        ..Default::default()
+    };
+
 
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of
@@ -1052,38 +1055,38 @@ fn export_faces_multi_index(
                 }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
-                if load_options.triangulate {
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        a,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        b,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        c,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
+                add_vertex_multi_index(
+                    &mut mesh,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
+                    a,
+                    pos,
+                    texcoord,
+                    normal,
+                )?;
+                add_vertex_multi_index(
+                    &mut mesh,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
+                    b,
+                    pos,
+                    texcoord,
+                    normal,
+                )?;
+                add_vertex_multi_index(
+                    &mut mesh,
+                    &mut index_map,
+                    &mut normal_index_map,
+                    &mut texcoord_index_map,
+                    c,
+                    pos,
+                    texcoord,
+                    normal,
+                )?;
 
+                if load_options.triangulate {
                     add_vertex_multi_index(
                         &mut mesh,
                         &mut index_map,
@@ -1115,36 +1118,6 @@ fn export_faces_multi_index(
                         normal,
                     )?;
                 } else {
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        a,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        b,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        c,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
                     add_vertex_multi_index(
                         &mut mesh,
                         &mut index_map,
@@ -1329,7 +1302,7 @@ fn merge_identical_points(mesh: &mut Mesh) {
             }
         })
         .flatten()
-        .collect::<Vec<_>>();
+        .collect();
 
     mesh.indices
         .iter_mut()
