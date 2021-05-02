@@ -20,8 +20,8 @@ exclude = [
 
 [features]
 default = ["ahash"]
-merge = ["slice_as_array"]
-reorder = []
+merging = ["slice_as_array"]
+reordering = []
 
 [dependencies]
 ahash = { version = "0.7.2", optional = true }

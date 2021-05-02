@@ -1197,12 +1197,12 @@ fn export_faces_multi_index(
         }
     }
 
-    #[cfg(feature = "merge")]
+    #[cfg(feature = "merging")]
     if load_options.merge_identical_points {
         merge_identical_points(&mut mesh);
     }
 
-    #[cfg(feature = "reorder")]
+    #[cfg(feature = "reordering")]
     if load_options.reorder_data {
         reorder_data(&mut mesh);
     }
@@ -1210,7 +1210,7 @@ fn export_faces_multi_index(
     Ok(mesh)
 }
 
-#[cfg(feature = "reorder")]
+#[cfg(feature = "reordering")]
 fn reorder_data(mesh: &mut Mesh) {
     // If we have per face per vertex data for UVs ...
     if mesh.positions.len() < mesh.texcoords.len() {
@@ -1283,7 +1283,7 @@ fn reorder_data(mesh: &mut Mesh) {
     }
 }
 
-#[cfg(feature = "merge")]
+#[cfg(feature = "merging")]
 fn merge_identical_points(mesh: &mut Mesh) {
     let mut compressed_positions = Vec::with_capacity(mesh.positions.len());
     let mut compressed_indicess = Vec::new();
