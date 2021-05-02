@@ -190,9 +190,13 @@ use std::{
     fmt,
     fs::File,
     io::{prelude::*, BufReader},
+    mem::size_of,
     path::Path,
     str::{FromStr, SplitWhitespace},
 };
+
+#[macro_use]
+extern crate slice_as_array;
 
 #[cfg(feature = "ahash")]
 pub type HashMap<K, V> = ahash::AHashMap<K, V>;
@@ -365,11 +369,17 @@ pub struct LoadOptions {
     ///   }
     ///   ```
     pub reorder_data: bool,
+    /// Merge identical positions. If adjacent faces share vertices that have
+    /// separate `indices` but the same position in 3D they will be merged into
+    /// a single vertex and the resp. `indices` changedThis may change the
+    /// mesh's topology.
+    pub merge_identical_points: bool,
 }
 
 impl Default for LoadOptions {
     fn default() -> Self {
         Self {
+            merge_identical_points: false,
             triangulate: false,
             single_index: false,
             reorder_data: false,
@@ -1187,81 +1197,125 @@ fn export_faces_multi_index(
         }
     }
 
+    #[cfg(feature = "merge")]
+    if load_options.merge_identical_points {
+        merge_identical_points(&mut mesh);
+    }
+
+    #[cfg(feature = "reorder")]
     if load_options.reorder_data {
-        // If we have per face per vertex data for UVs ...
-        if mesh.positions.len() < mesh.texcoords.len() {
-            mesh.texcoords = mesh
-                .texcoord_indices
-                .iter()
-                .flat_map(|&index| {
-                    let index = index as usize * 2;
-                    std::array::IntoIter::new([
-                        mesh.texcoords[index + 0],
-                        mesh.texcoords[index + 1],
-                    ])
-                })
-                .collect::<Vec<_>>();
-
-            // Clear indices.
-            mesh.texcoord_indices = Vec::new();
-        } else {
-            assert!(mesh.texcoords.len() == mesh.positions.len());
-
-            let mut new_texcoords = vec![0.0; mesh.positions.len()];
-            mesh.texcoord_indices.iter().zip(&mesh.indices).for_each(
-                |(&texcoord_index, &index)| {
-                    let texcoord_index = texcoord_index as usize * 2;
-                    let index = index as usize * 2;
-                    new_texcoords[index + 0] = mesh.texcoords[texcoord_index + 0];
-                    new_texcoords[index + 1] = mesh.texcoords[texcoord_index + 1];
-                },
-            );
-
-            mesh.texcoords = new_texcoords;
-            // Clear indices.
-            mesh.texcoord_indices = Vec::new();
-        }
-
-        // If we have per face per vertex data for UVs ...
-        if mesh.positions.len() < mesh.texcoords.len() {
-            mesh.normals = mesh
-                .normal_indices
-                .iter()
-                .flat_map(|&index| {
-                    let index = index as usize * 2;
-                    std::array::IntoIter::new([
-                        mesh.normals[index + 0],
-                        mesh.normals[index + 1],
-                        mesh.normals[index + 2],
-                    ])
-                })
-                .collect::<Vec<_>>();
-
-            // Clear indices.
-            mesh.normal_indices = Vec::new();
-        } else {
-            assert!(mesh.texcoords.len() == mesh.positions.len());
-
-            let mut new_normals = vec![0.0; mesh.positions.len()];
-            mesh.normal_indices
-                .iter()
-                .zip(&mesh.indices)
-                .for_each(|(&normal_index, &index)| {
-                    let normal_index = normal_index as usize * 3;
-                    let index = index as usize * 3;
-                    new_normals[index + 0] = mesh.normals[normal_index + 0];
-                    new_normals[index + 1] = mesh.normals[normal_index + 1];
-                    new_normals[index + 2] = mesh.normals[normal_index + 2];
-                });
-
-            mesh.normals = new_normals;
-
-            // Clear indices.
-            mesh.normal_indices = Vec::new();
-        }
+        reorder_data(&mut mesh);
     }
 
     Ok(mesh)
+}
+
+#[cfg(feature = "reorder")]
+fn reorder_data(mesh: &mut Mesh) {
+    // If we have per face per vertex data for UVs ...
+    if mesh.positions.len() < mesh.texcoords.len() {
+        mesh.texcoords = mesh
+            .texcoord_indices
+            .iter()
+            .flat_map(|&index| {
+                let index = index as usize * 2;
+                std::array::IntoIter::new([mesh.texcoords[index + 0], mesh.texcoords[index + 1]])
+            })
+            .collect::<Vec<_>>();
+
+        // Clear indices.
+        mesh.texcoord_indices = Vec::new();
+    } else {
+        assert!(mesh.texcoords.len() == mesh.positions.len());
+
+        let mut new_texcoords = vec![0.0; mesh.positions.len()];
+        mesh.texcoord_indices
+            .iter()
+            .zip(&mesh.indices)
+            .for_each(|(&texcoord_index, &index)| {
+                let texcoord_index = texcoord_index as usize * 2;
+                let index = index as usize * 2;
+                new_texcoords[index + 0] = mesh.texcoords[texcoord_index + 0];
+                new_texcoords[index + 1] = mesh.texcoords[texcoord_index + 1];
+            });
+
+        mesh.texcoords = new_texcoords;
+        // Clear indices.
+        mesh.texcoord_indices = Vec::new();
+    }
+
+    // If we have per face per vertex data for UVs ...
+    if mesh.positions.len() < mesh.texcoords.len() {
+        mesh.normals = mesh
+            .normal_indices
+            .iter()
+            .flat_map(|&index| {
+                let index = index as usize * 2;
+                std::array::IntoIter::new([
+                    mesh.normals[index + 0],
+                    mesh.normals[index + 1],
+                    mesh.normals[index + 2],
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        // Clear indices.
+        mesh.normal_indices = Vec::new();
+    } else {
+        assert!(mesh.texcoords.len() == mesh.positions.len());
+
+        let mut new_normals = vec![0.0; mesh.positions.len()];
+        mesh.normal_indices
+            .iter()
+            .zip(&mesh.indices)
+            .for_each(|(&normal_index, &index)| {
+                let normal_index = normal_index as usize * 3;
+                let index = index as usize * 3;
+                new_normals[index + 0] = mesh.normals[normal_index + 0];
+                new_normals[index + 1] = mesh.normals[normal_index + 1];
+                new_normals[index + 2] = mesh.normals[normal_index + 2];
+            });
+
+        mesh.normals = new_normals;
+
+        // Clear indices.
+        mesh.normal_indices = Vec::new();
+    }
+}
+
+#[cfg(feature = "merge")]
+fn merge_identical_points(mesh: &mut Mesh) {
+    let mut compressed_positions = Vec::with_capacity(mesh.positions.len());
+    let mut compressed_indicess = Vec::new();
+    let mut canonical_indices = HashMap::<[u8; size_of::<[f32; 3]>()], u32>::new();
+
+    mesh.positions.chunks(3).for_each(|position| {
+        // Ugly, but f32 has no Eq and no Hash.
+        let bitpattern = unsafe {
+            std::mem::transmute::<[f32; 3], [u8; size_of::<[f32; 3]>()]>(
+                *slice_as_array!(position, [f32; 3]).unwrap(),
+            )
+        };
+
+        match canonical_indices.get(&bitpattern) {
+            Some(&other_index) => compressed_indicess.push(other_index),
+            None => {
+                let other_index = compressed_positions.len() as u32;
+                canonical_indices.insert(bitpattern, other_index);
+                compressed_indicess.push(other_index);
+                compressed_positions.push(position[0]);
+                compressed_positions.push(position[1]);
+                compressed_positions.push(position[2]);
+            }
+        }
+    });
+
+    compressed_positions.shrink_to_fit();
+    mesh.positions = compressed_positions;
+
+    mesh.indices
+        .iter_mut()
+        .for_each(|vertex| *vertex = compressed_indicess[*vertex as usize]);
 }
 
 /// Load the various objects specified in the `OBJ` file and any associated
@@ -1546,6 +1600,7 @@ where
             Some(_) => {}
         }
     }
+
     // For the last object in the file we won't encounter another object name to
     // tell us when it's done, so if we're parsing an object push the last one
     // on the list as well
@@ -1571,9 +1626,11 @@ where
         },
         name,
     ));
+
     if !materials.is_empty() {
         mtlresult = Ok(materials);
     }
+
     Ok((models, mtlresult))
 }
 
@@ -1592,6 +1649,7 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                 return Err(LoadError::ReadError);
             }
         };
+
         match words.next() {
             Some("#") | None => continue,
             Some("newmtl") => {
@@ -1699,10 +1757,12 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
             }
         }
     }
+
     // Finalize the last material we were parsing
     if !cur_mat.name.is_empty() {
         mat_map.insert(cur_mat.name.clone(), materials.len());
         materials.push(cur_mat);
     }
+
     Ok((materials, mat_map))
 }
