@@ -193,10 +193,12 @@ use std::{
     fmt,
     fs::File,
     io::{prelude::*, BufReader},
-    mem::size_of,
     path::Path,
     str::{FromStr, SplitWhitespace},
 };
+
+#[cfg(feature = "merging")]
+use std::mem::size_of;
 
 #[cfg(feature = "merging")]
 #[macro_use]
@@ -1300,33 +1302,34 @@ fn reorder_data(mesh: &mut Mesh) {
 
 #[cfg(feature = "merging")]
 fn merge_identical_points(mesh: &mut Mesh) {
-    let mut compressed_positions = Vec::with_capacity(mesh.positions.len());
     let mut compressed_indicess = Vec::new();
     let mut canonical_indices = HashMap::<[u8; size_of::<[f32; 3]>()], u32>::new();
 
-    mesh.positions.chunks(3).for_each(|position| {
-        // Ugly, but f32 has no Eq and no Hash.
-        let bitpattern = unsafe {
-            std::mem::transmute::<[f32; 3], [u8; size_of::<[f32; 3]>()]>(
-                *slice_as_array!(position, [f32; 3]).unwrap(),
-            )
-        };
+    let mut index = 0;
+    mesh.positions = mesh
+        .positions
+        .chunks(3)
+        .filter_map(|position| {
+            let position = slice_as_array!(position, [f32; 3]).unwrap();
+            // Ugly, but f32 has no Eq and no Hash.
+            let bitpattern =
+                unsafe { std::mem::transmute::<[f32; 3], [u8; size_of::<[f32; 3]>()]>(*position) };
 
-        match canonical_indices.get(&bitpattern) {
-            Some(&other_index) => compressed_indicess.push(other_index),
-            None => {
-                let other_index = (compressed_positions.len() / 3) as u32;
-                canonical_indices.insert(bitpattern, other_index);
-                compressed_indicess.push(other_index);
-                compressed_positions.push(position[0]);
-                compressed_positions.push(position[1]);
-                compressed_positions.push(position[2]);
+            match canonical_indices.get(&bitpattern) {
+                Some(&other_index) => {
+                    compressed_indicess.push(other_index);
+                    None
+                }
+                None => {
+                    canonical_indices.insert(bitpattern, index);
+                    compressed_indicess.push(index);
+                    index += 1;
+                    Some(std::array::IntoIter::new(*position))
+                }
             }
-        }
-    });
-
-    compressed_positions.shrink_to_fit();
-    mesh.positions = compressed_positions;
+        })
+        .flatten()
+        .collect::<Vec<_>>();
 
     mesh.indices
         .iter_mut()
