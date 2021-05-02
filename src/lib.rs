@@ -185,8 +185,9 @@
 //! * `rordering` – Adds support for reordering the normal- and texture
 //!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
 #![feature(test)]
-#![feature(const_generics)]
-#![feature(const_evaluatable_checked)]
+#![cfg_attr(feature = "merging", allow(incomplete_features))]
+#![cfg_attr(feature = "merging", feature(const_generics))]
+#![cfg_attr(feature = "merging", feature(const_evaluatable_checked))]
 
 extern crate test;
 
@@ -201,9 +202,6 @@ use std::{
 
 #[cfg(feature = "merging")]
 use std::mem::size_of;
-
-#[cfg(feature = "merging")]
-extern crate slice_as_array;
 
 #[cfg(feature = "ahash")]
 pub type HashMap<K, V> = ahash::AHashMap<K, V>;
@@ -1293,7 +1291,6 @@ fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut V
     *points = points
         .chunks(N)
         .filter_map(|position| {
-            //let position = slice_as_array!(position, [f32; N]).unwrap();
             let position: &[f32; N] = unsafe { std::mem::transmute(position.as_ptr()) };
 
             // Ugly, but f32 has no Eq and no Hash.
