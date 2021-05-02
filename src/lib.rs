@@ -172,15 +172,18 @@
 //! ## Features
 //!
 //! * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
-//!   for hashing when reading files/additional `MTL` properties.
-//!
-//!   To disable and use the slower [`std::collections::HashMap`] instead, unset
-//! default features in `Cargo.toml`:
-//!
+//!   for hashing when reading files and merging vertices. To disable and use
+//!   the slower [`std::collections::HashMap`] instead, unset default
+//! features in `Cargo.toml`:
 //!   ```toml
 //!   [dependencies.tobj]
 //!   default-features = false
 //!   ```
+//! * `merging` – Adds support for merging indentical vertex positions on
+//!   disconnected faces during import. See
+//!   [`merge_identical_points`](LoadOptions::merge_identical_points).
+//! * `rordering` – Adds support for reordering the normal- and texture
+//!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
 #![feature(test)]
 
 extern crate test;
@@ -195,6 +198,7 @@ use std::{
     str::{FromStr, SplitWhitespace},
 };
 
+#[cfg(feature = "merging")]
 #[macro_use]
 extern crate slice_as_array;
 
@@ -332,25 +336,23 @@ impl Default for Mesh {
 /// Options for processing the mesh during loading.
 #[derive(Debug, Clone, Copy)]
 pub struct LoadOptions {
-    /// Triangulate all faces during import.
-    /// * Points (one point) and lines (two points) are blown up to zero area
-    ///   triangles via point duplication.
-    /// * The resulting [`Mesh`]'s [`face_arities`](Mesh::face_arities) will be
-    ///   empty as all faces are guranteed to have arity `3`.
-    pub triangulate: bool,
-    /// Create a single index.
-    /// * Vertices may get duplicated to match the granularity
-    ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
-    /// * Topolgy may change as a result (faces may become disconnected in the
-    ///   index).
-    /// * The resulting `Mesh`'s [`normal_indices`](Mesh::normal_indices) and
-    ///   [`texcoord_indices`](Mesh::texcoord_indices) will be empty.
-    pub single_index: bool,
-    /// Normal & texture coordinates will be reordered to allow omitting their
-    /// indices
-    /// * The resulting `Mesh`'s `normal_indices` and/or `texcoord_indices` will
-    ///   be empty. This flag has *no effect* if
+    /// Merge identical positions.
+    ///
+    /// * This flag has *no effect* if
     ///   [`single_index`](LoadOptions::single_index) is set!
+    /// * If adjacent faces share vertices that have separate `indices` but the
+    ///   same position in 3D they will be merged into a single vertex and the
+    ///   resp. `indices` changed.
+    /// * Topolgy may change as a result (faces may become *connected* in the
+    ///   index).
+    #[cfg(feature = "merging")]
+    pub merge_identical_points: bool,
+    /// Normal & texture coordinates will be reordered to allow omitting their
+    /// indices.
+    /// * This flag has *no effect* if
+    ///   [`single_index`](LoadOptions::single_index) is set!
+    /// * The resulting [`Mesh`]'s `normal_indices` and/or `texcoord_indices`
+    ///   will be empty.
     /// * *Per-vertex* normals and/or texture_coordinates will be reordered to
     ///   match the `Mesh`'s `indices`.
     /// * *Per-vertex-per-face*  normals and/or texture coordinates indices will
@@ -368,21 +370,33 @@ pub struct LoadOptions {
     ///       );
     ///   }
     ///   ```
+    #[cfg(feature = "reordering")]
     pub reorder_data: bool,
-    /// Merge identical positions. If adjacent faces share vertices that have
-    /// separate `indices` but the same position in 3D they will be merged into
-    /// a single vertex and the resp. `indices` changedThis may change the
-    /// mesh's topology.
-    pub merge_identical_points: bool,
+    /// Create a single index.
+    /// * Vertices may get duplicated to match the granularity
+    ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
+    /// * Topolgy may change as a result (faces may become *disconnected* in the
+    ///   index).
+    /// * The resulting [`Mesh`]'s [`normal_indices`](Mesh::normal_indices) and
+    ///   [`texcoord_indices`](Mesh::texcoord_indices) will be empty.
+    pub single_index: bool,
+    /// Triangulate all faces during import.
+    /// * Points (one point) and lines (two points) are blown up to zero area
+    ///   triangles via point duplication.
+    /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
+    ///   empty as all faces are guranteed to have arity `3`.
+    pub triangulate: bool,
 }
 
 impl Default for LoadOptions {
     fn default() -> Self {
         Self {
+            #[cfg(feature = "merging")]
             merge_identical_points: false,
-            triangulate: false,
-            single_index: false,
+            #[cfg(feature = "reordering")]
             reorder_data: false,
+            single_index: false,
+            triangulate: false,
         }
     }
 }
@@ -784,6 +798,7 @@ fn export_faces(
             }
         }
     }
+
     Ok(mesh)
 }
 
