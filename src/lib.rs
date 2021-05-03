@@ -31,16 +31,17 @@
 //! ## Indices
 //!
 //! Indices are also loaded and may re-use vertices already existing in the
-//! `Mesh`. This data is stored in the [`indices`](Mesh::indices) member.
+//! mesh, this data is stored in the `indices` member.
 //!
-//! When a `Mesh` contains *per-vertex-per-face* normals or texture coordinates,
-//! positions are duplicated to be *per-vertex-per-face* too. This potentially
-//! changes the topology (faces may become disconnected even though their
-//! vertices still share a position in space).
+//! When a `Mesh` contains *per vertex per face* normals or texture coordinates,
+//! positions can be duplicated to be *per vertex per face* too via the
+//! [`single_index`](LoadOptions::single_index) flag. This potentially changes
+//! the topology (faces may become disconnected even though their vertices still
+//! share a position in space).
 //!
-//! Creation of separate indices for normals and texture coordinates can be
-//! requested. This also guarantees that the topology of the a mesh does not
-//! change when the latter are specified *per-vertex-per-face*.
+//! By default separate indices for normals and texture coordinates are created.
+//! This also guarantees that the topology of the `Mesh` does *not* change when
+//! either of the latter are specified *per vertex per face*.
 //!
 //! ## Materials
 //!

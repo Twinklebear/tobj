@@ -33,13 +33,13 @@ Indices are also loaded and may re-use vertices already existing in the mesh,
 this data is stored in the `indices` member.
 
 When a `Mesh` contains *per vertex per face* normals or texture coordinates,
-positions are duplicated to be *per vertex per face* too. This potentially changes
-the topology (faces may become disconnected even though their vertices still share
-a position in space).
+positions can be duplicated to be *per vertex per face* too via the
+`single_index` flag. This potentially changes the topology (faces may become
+disconnected even though their vertices still share a position in space).
 
-Creation of separate indices for normals and texture coordinates can be
-requested. This also guarantees that the topology of the a mesh does not change
-when the latter are specified *per vertex per face*.
+By default separate indices for normals and texture coordinates are created.
+This also guarantees that the topology of the `Mesh` does *not* change when
+either of the latter are specified *per vertex per face*.
 
 ## Materials
 
@@ -49,16 +49,20 @@ parameter and its value.
 
 ## Features
 
- * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
-   for hashing when reading files/additional MTL properties.
-
-   To disable and use the slower `std::collections::HashMap` instead, unset
-   default features in `Cargo.toml`:
+* `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
+   for hashing when reading files and merging vertices. To disable and use
+   the slower `std::collections::HashMap` instead, unset default features in
+   `Cargo.toml`:
 
    ```toml
    [dependencies.tobj]
    default-features = false
    ```
+
+* `merging` – Adds support for merging indentical vertex positions on
+   disconnected faces during import.
+* `rordering` – Adds support for reordering the normal- and texture coordinate
+   indices.
 
 ## Documentation
 
