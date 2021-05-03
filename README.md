@@ -64,6 +64,10 @@ parameter and its value.
 
 * `merging` – Adds support for merging identical vertex positions on
    disconnected faces during import.
+
+   **Warning:** this feature uses *const generics* and thus requires at least a
+   `beta` toolchain to build.
+
 * `reordering` – Adds support for reordering the normal- and texture coordinate
    indices.
 

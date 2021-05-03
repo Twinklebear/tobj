@@ -186,6 +186,9 @@
 //!   disconnected faces during import. See
 //!   [`merge_identical_points`](LoadOptions::merge_identical_points).
 //!
+//!   **Warning:** this feature uses *const generics* and thus requires at
+//!   least a `beta` toolchain to build.
+//!
 //! * `reordering` – Adds support for reordering the normal- and texture
 //!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
 #![feature(test)]
@@ -210,14 +213,8 @@ use std::mem::size_of;
 #[cfg(feature = "ahash")]
 pub type HashMap<K, V> = ahash::AHashMap<K, V>;
 
-#[cfg(feature = "ahash")]
-pub type HashSet<K> = ahash::AHashSet<K>;
-
 #[cfg(not(feature = "ahash"))]
 pub type HashMap<K, V> = std::collections::HashMap<K, V>;
-
-#[cfg(not(feature = "ahash"))]
-pub type HashSet<K> = std::collections::HashSet<K>;
 
 /// A mesh made up of triangles loaded from some `OBJ` file.
 ///
@@ -1288,12 +1285,9 @@ fn reorder_data(mesh: &mut Mesh) {
             .iter()
             .flat_map(|&index| {
                 let index = index as usize * 2;
-                std::array::IntoIter::new([mesh.texcoords[index + 0], mesh.texcoords[index + 1]])
+                std::array::IntoIter::new([mesh.texcoords[index], mesh.texcoords[index + 1]])
             })
             .collect::<Vec<_>>();
-
-        // Clear indices.
-        mesh.texcoord_indices = Vec::new();
     } else {
         assert!(mesh.texcoords.len() == mesh.positions.len());
 
@@ -1304,14 +1298,15 @@ fn reorder_data(mesh: &mut Mesh) {
             .for_each(|(&texcoord_index, &index)| {
                 let texcoord_index = texcoord_index as usize * 2;
                 let index = index as usize * 2;
-                new_texcoords[index + 0] = mesh.texcoords[texcoord_index + 0];
+                new_texcoords[index] = mesh.texcoords[texcoord_index];
                 new_texcoords[index + 1] = mesh.texcoords[texcoord_index + 1];
             });
 
         mesh.texcoords = new_texcoords;
-        // Clear indices.
-        mesh.texcoord_indices = Vec::new();
     }
+
+    // Clear indices.
+    mesh.texcoord_indices = Vec::new();
 
     // If we have per face per vertex data for UVs ...
     if mesh.positions.len() < mesh.texcoords.len() {
@@ -1321,15 +1316,12 @@ fn reorder_data(mesh: &mut Mesh) {
             .flat_map(|&index| {
                 let index = index as usize * 2;
                 std::array::IntoIter::new([
-                    mesh.normals[index + 0],
+                    mesh.normals[index],
                     mesh.normals[index + 1],
                     mesh.normals[index + 2],
                 ])
             })
             .collect::<Vec<_>>();
-
-        // Clear indices.
-        mesh.normal_indices = Vec::new();
     } else {
         assert!(mesh.texcoords.len() == mesh.positions.len());
 
@@ -1340,16 +1332,16 @@ fn reorder_data(mesh: &mut Mesh) {
             .for_each(|(&normal_index, &index)| {
                 let normal_index = normal_index as usize * 3;
                 let index = index as usize * 3;
-                new_normals[index + 0] = mesh.normals[normal_index + 0];
+                new_normals[index] = mesh.normals[normal_index];
                 new_normals[index + 1] = mesh.normals[normal_index + 1];
                 new_normals[index + 2] = mesh.normals[normal_index + 2];
             });
 
         mesh.normals = new_normals;
-
-        // Clear indices.
-        mesh.normal_indices = Vec::new();
     }
+
+    // Clear indices.
+    mesh.normal_indices = Vec::new();
 }
 
 /// Merge identical points. A point has dimension N.
@@ -1370,7 +1362,7 @@ where
     *points = points
         .chunks(N)
         .filter_map(|position| {
-            let position: &[f32; N] = unsafe { std::mem::transmute(position.as_ptr()) };
+            let position: &[f32; N] = &unsafe { *(position.as_ptr() as *const [f32; N]) };
 
             // Ugly, but f32 has no Eq and no Hash.
             let bitpattern =
@@ -1398,8 +1390,10 @@ where
 }
 
 /// Load the various objects specified in the `OBJ` file and any associated
-/// `MTL` file. Returns a pair of `Vec`s containing the loaded models and
-/// materials from the file.
+/// `MTL` file.
+///
+/// Returns a pair of `Vec`s containing the loaded models and materials from the
+/// file.
 ///
 /// # Arguments
 ///
@@ -1463,7 +1457,7 @@ where
     load_mtl_buf(&mut reader)
 }
 
-/// Load the various meshes in an `OBJ` buffer of some kind.
+/// Load the various meshes in an `OBJ` buffer.
 ///
 /// This could e.g. be a network stream, a text file already in memory etc.
 ///
