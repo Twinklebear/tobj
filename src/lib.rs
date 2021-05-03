@@ -301,7 +301,8 @@ pub struct Mesh {
     /// each.
     pub indices: Vec<u32>,
     /// The number of vertices (arity) of each face. *Empty* if loaded with
-    /// `triangulate` set to `true`.
+    /// `triangulate` set to `true` or if the mesh constists *only* of
+    /// triangles.
     ///
     /// The offset for the starting index of a face can be found by iterating
     /// through the `face_arities` until reaching the desired face, accumulating
