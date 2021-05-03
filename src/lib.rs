@@ -339,6 +339,9 @@ impl Default for Mesh {
 pub struct LoadOptions {
     /// Merge identical positions.
     ///
+    /// This is usually what you want if you intend to use the mesh in an
+    /// *offline rendering* context or to do further processing with
+    /// *topological operators*.
     /// * This flag has *no effect* if
     ///   [`single_index`](LoadOptions::single_index) is set!
     /// * If adjacent faces share vertices that have separate `indices` but the
@@ -374,7 +377,10 @@ pub struct LoadOptions {
     #[cfg(feature = "reordering")]
     pub reorder_data: bool,
     /// Create a single index.
-    /// * Vertices may get duplicated to match the granularity
+    ///
+    /// This is usually what you want if you are loading the mesh to display in
+    /// a *realtime* (*GPU*) context.
+    /// * Vertices may get duplicated to match the granularity.
     ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
     /// * Topolgy may change as a result (faces may become *disconnected* in the
     ///   index).
@@ -383,10 +389,27 @@ pub struct LoadOptions {
     pub single_index: bool,
     /// Triangulate all faces during import.
     /// * Points (one point) and lines (two points) are blown up to zero area
-    ///   triangles via point duplication.
+    ///   triangles via point duplication. Except if `ignore_points` or
+    ///   `ignore_lines` is/are set to `true`, resp.
     /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
     ///   empty as all faces are guranteed to have arity `3`.
     pub triangulate: bool,
+    /// Ignore faces containing only a single vertex (points).
+    ///
+    /// This is usually what you want if you do *not* intend to make special use
+    /// of the point data (e.g. as particles etc.).
+    ///
+    /// Polygon meshes that contains faces with one vertex only usually do so
+    /// because of bad topology.
+    pub ignore_points: bool,
+    /// Ignore faces containing only two vertices (lines).
+    ///
+    /// This is usually what you want if you do *not* intend to make special use
+    /// of the line data (e.g. as wires/ropes etc.).
+    ///
+    /// Polygon meshes that contains faces with two verticesx only usually do so
+    /// because of bad topology.
+    pub ignore_lines: bool,
 }
 
 impl Default for LoadOptions {
@@ -398,6 +421,8 @@ impl Default for LoadOptions {
             reorder_data: false,
             single_index: false,
             triangulate: false,
+            ignore_points: false,
+            ignore_lines: false,
         }
     }
 }
@@ -735,27 +760,34 @@ fn export_faces(
         material_id: mat_id,
         ..Default::default()
     };
+    let mut is_all_triangles = true;
 
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of
         // an unknown length triangle fan.
         match *f {
             Face::Point(ref a) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                if load_options.triangulate {
+                if !load_options.ignore_points {
                     add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                } else {
-                    mesh.face_arities.push(1);
+                    if load_options.triangulate {
+                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                    } else {
+                        is_all_triangles = false;
+                        mesh.face_arities.push(1);
+                    }
                 }
             }
             Face::Line(ref a, ref b) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                if load_options.triangulate {
+                if !load_options.ignore_lines {
+                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
                     add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                } else {
-                    mesh.face_arities.push(2);
+                    if load_options.triangulate {
+                        add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                    } else {
+                        is_all_triangles = false;
+                        mesh.face_arities.push(2);
+                    }
                 }
             }
             Face::Triangle(ref a, ref b, ref c) => {
@@ -777,6 +809,7 @@ fn export_faces(
                     add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
                 } else {
                     add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
+                    is_all_triangles = false;
                     mesh.face_arities.push(4);
                 }
             }
@@ -794,10 +827,16 @@ fn export_faces(
                     for i in indices.iter() {
                         add_vertex(&mut mesh, &mut index_map, i, pos, texcoord, normal)?;
                     }
+                    is_all_triangles = false;
                     mesh.face_arities.push(indices.len() as u32);
                 }
             }
         }
+    }
+
+    if is_all_triangles {
+        // This is a triangle-only mesh.
+        mesh.face_arities = Vec::new();
     }
 
     Ok(mesh)
@@ -941,23 +980,14 @@ fn export_faces_multi_index(
         ..Default::default()
     };
 
+    let mut is_all_triangles = true;
 
     for f in faces {
         // Optimized paths for Triangles and Quads, Polygon handles the general case of
         // an unknown length triangle fan
         match *f {
             Face::Point(ref a) => {
-                add_vertex_multi_index(
-                    &mut mesh,
-                    &mut index_map,
-                    &mut normal_index_map,
-                    &mut texcoord_index_map,
-                    a,
-                    pos,
-                    texcoord,
-                    normal,
-                )?;
-                if load_options.triangulate {
+                if !load_options.ignore_points {
                     add_vertex_multi_index(
                         &mut mesh,
                         &mut index_map,
@@ -968,42 +998,45 @@ fn export_faces_multi_index(
                         texcoord,
                         normal,
                     )?;
-                    add_vertex_multi_index(
-                        &mut mesh,
-                        &mut index_map,
-                        &mut normal_index_map,
-                        &mut texcoord_index_map,
-                        a,
-                        pos,
-                        texcoord,
-                        normal,
-                    )?;
-                } else {
-                    mesh.face_arities.push(1);
+                    if load_options.triangulate {
+                        add_vertex_multi_index(
+                            &mut mesh,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
+                            a,
+                            pos,
+                            texcoord,
+                            normal,
+                        )?;
+                        add_vertex_multi_index(
+                            &mut mesh,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
+                            a,
+                            pos,
+                            texcoord,
+                            normal,
+                        )?;
+                    } else {
+                        is_all_triangles = false;
+                        mesh.face_arities.push(1);
+                    }
                 }
             }
             Face::Line(ref a, ref b) => {
-                add_vertex_multi_index(
-                    &mut mesh,
-                    &mut index_map,
-                    &mut normal_index_map,
-                    &mut texcoord_index_map,
-                    a,
-                    pos,
-                    texcoord,
-                    normal,
-                )?;
-                add_vertex_multi_index(
-                    &mut mesh,
-                    &mut index_map,
-                    &mut normal_index_map,
-                    &mut texcoord_index_map,
-                    b,
-                    pos,
-                    texcoord,
-                    normal,
-                )?;
-                if load_options.triangulate {
+                if !load_options.ignore_lines {
+                    add_vertex_multi_index(
+                        &mut mesh,
+                        &mut index_map,
+                        &mut normal_index_map,
+                        &mut texcoord_index_map,
+                        a,
+                        pos,
+                        texcoord,
+                        normal,
+                    )?;
                     add_vertex_multi_index(
                         &mut mesh,
                         &mut index_map,
@@ -1014,8 +1047,21 @@ fn export_faces_multi_index(
                         texcoord,
                         normal,
                     )?;
-                } else {
-                    mesh.face_arities.push(2);
+                    if load_options.triangulate {
+                        add_vertex_multi_index(
+                            &mut mesh,
+                            &mut index_map,
+                            &mut normal_index_map,
+                            &mut texcoord_index_map,
+                            b,
+                            pos,
+                            texcoord,
+                            normal,
+                        )?;
+                    } else {
+                        is_all_triangles = false;
+                        mesh.face_arities.push(2);
+                    }
                 }
             }
             Face::Triangle(ref a, ref b, ref c) => {
@@ -1127,6 +1173,7 @@ fn export_faces_multi_index(
                         texcoord,
                         normal,
                     )?;
+                    is_all_triangles = false;
                     mesh.face_arities.push(4);
                 }
             }
@@ -1180,10 +1227,16 @@ fn export_faces_multi_index(
                             normal,
                         )?;
                     }
+                    is_all_triangles = false;
                     mesh.face_arities.push(indices.len() as u32);
                 }
             }
         }
+    }
+
+    if is_all_triangles {
+        // This is a triangle-only mesh.
+        mesh.face_arities = Vec::new();
     }
 
     #[cfg(feature = "merging")]
@@ -1275,10 +1328,12 @@ fn reorder_data(mesh: &mut Mesh) {
     }
 }
 
+/// Merge identical points. A point has dimension N.
 #[cfg(feature = "merging")]
 #[inline]
 fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut Vec<u32>)
-    where [(); size_of::<[f32; N]>()]:
+where
+    [(); size_of::<[f32; N]>()]: ,
 {
     if indices.is_empty() {
         return;
