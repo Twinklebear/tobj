@@ -273,7 +273,7 @@ pub type HashSet<K> = std::collections::HashSet<K>;
 #[derive(Debug, Clone)]
 pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing positions of
-    /// vertices in the mesh
+    /// vertices in the mesh.
     pub positions: Vec<f32>,
     /// Flattened 3 component floating point vectors, storing normals of
     /// vertices in the mesh.
@@ -295,9 +295,9 @@ pub struct Mesh {
     /// indices are used by each face.
     ///
     /// When [`single_index`](LoadOptions::single_index) is set to `true`,
-    /// these indices are for all of the data in the mesh. Positions,
+    /// these indices are for *all* of the data in the mesh. Positions,
     /// normals and texture coordinaes.
-    /// Otherwise normals and texture coordinates have their own indices,
+    /// Otherwise normals and texture coordinates have *their own* indices,
     /// each.
     pub indices: Vec<u32>,
     /// The number of vertices (arity) of each face. *Empty* if loaded with
@@ -336,6 +336,17 @@ impl Default for Mesh {
 }
 
 /// Options for processing the mesh during loading.
+///
+/// By default, all of these are `false`. With those settings, the data you get
+/// represents the original data in the input file/buffer as closely as
+/// possible.
+///
+/// Use the [init struct pattern](https://xaeroxe.github.io/init-struct-pattern/) to set individual options:
+/// ```ignore
+/// LoadOptions {
+///     merge_identical_points: true,
+///     ..Default::default()
+/// }
 #[derive(Debug, Clone, Copy)]
 pub struct LoadOptions {
     /// Merge identical positions.
