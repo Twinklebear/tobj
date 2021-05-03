@@ -1,6 +1,9 @@
 # `tobj` – Tiny OBJ Loader
 
-Inspired by Syoyo's excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
+[![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
+![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
+
+Inspired by Syoyo’s excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
 Aims to be a simple and lightweight option for loading `OBJ` files. Just returns
 two `Vec`s containing loaded models and materials.
 
@@ -59,9 +62,9 @@ parameter and its value.
    default-features = false
    ```
 
-* `merging` – Adds support for merging indentical vertex positions on
+* `merging` – Adds support for merging identical vertex positions on
    disconnected faces during import.
-* `rordering` – Adds support for reordering the normal- and texture coordinate
+* `reordering` – Adds support for reordering the normal- and texture coordinate
    indices.
 
 ## Documentation
@@ -71,11 +74,7 @@ Rust docs can be found [here](https://docs.rs/tobj/).
 ## Installation
 
 Add the [crate](https://crates.io/crates/tobj) as a dependency in your
-`Cargo.toml` and you're all set!
-
-[![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
-![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
-
+`Cargo.toml` and you’re all set!
 
 ## Example
 
@@ -167,7 +166,7 @@ For an example of integration with [glium](https://github.com/tomaka/glium) to
 make a simple OBJ viewer, check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer).
 
 A sample image from the viewer is shown below, the [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml)
-model can be found on Morgan McGuire's meshes page and was originally built by
+model can be found on Morgan McGuire’s meshes page and was originally built by
 kescha.
 
 The Rungholt model is reasonably large (6.7M triangles, 12.3M vertices) and is
@@ -176,7 +175,7 @@ an i7-4790k and 16GB of 1600Mhz DDR3 RAM with `tobj 0.1.1` on `rustc 1.6.0`.
 
 ![Rungholt](http://i.imgur.com/wImyNG4.png)
 
-For an example of integration within a ray tracer, check out tray\_rust's
+For an example of integration within a ray tracer, check out tray\_rust’s
 [mesh module](https://github.com/Twinklebear/tray_rust/blob/master/src/geometry/mesh.rs).
 
 The Stanford Buddha and Dragon from the [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/)

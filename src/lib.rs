@@ -176,14 +176,17 @@
 //!   for hashing when reading files and merging vertices. To disable and use
 //!   the slower [`std::collections::HashMap`] instead, unset default
 //! features in `Cargo.toml`:
+//!
 //!   ```toml
 //!   [dependencies.tobj]
 //!   default-features = false
 //!   ```
-//! * `merging` – Adds support for merging indentical vertex positions on
+//!
+//! * `merging` – Adds support for merging identical vertex positions on
 //!   disconnected faces during import. See
 //!   [`merge_identical_points`](LoadOptions::merge_identical_points).
-//! * `rordering` – Adds support for reordering the normal- and texture
+//!
+//! * `reordering` – Adds support for reordering the normal- and texture
 //!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
 #![feature(test)]
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
@@ -355,11 +358,14 @@ pub struct LoadOptions {
     /// This is usually what you want if you intend to use the mesh in an
     /// *offline rendering* context or to do further processing with
     /// *topological operators*.
+    ///
     /// * This flag has *no effect* if
     ///   [`single_index`](LoadOptions::single_index) is set!
+    ///
     /// * If adjacent faces share vertices that have separate `indices` but the
     ///   same position in 3D they will be merged into a single vertex and the
     ///   resp. `indices` changed.
+    ///
     /// * Topolgy may change as a result (faces may become *connected* in the
     ///   index).
     #[cfg(feature = "merging")]
@@ -393,17 +399,22 @@ pub struct LoadOptions {
     ///
     /// This is usually what you want if you are loading the mesh to display in
     /// a *realtime* (*GPU*) context.
+    ///
     /// * Vertices may get duplicated to match the granularity.
     ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
+    ///
     /// * Topolgy may change as a result (faces may become *disconnected* in the
     ///   index).
+    ///
     /// * The resulting [`Mesh`]'s [`normal_indices`](Mesh::normal_indices) and
     ///   [`texcoord_indices`](Mesh::texcoord_indices) will be empty.
     pub single_index: bool,
-    /// Triangulate all faces during import.
+    /// Triangulate all faces.
+    ///
     /// * Points (one point) and lines (two points) are blown up to zero area
     ///   triangles via point duplication. Except if `ignore_points` or
     ///   `ignore_lines` is/are set to `true`, resp.
+    ///
     /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
     ///   empty as all faces are guranteed to have arity `3`.
     pub triangulate: bool,
