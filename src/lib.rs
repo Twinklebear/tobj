@@ -19,7 +19,7 @@
 //! texture coordinates are optional.
 //!
 //! If no normals or texture coordinates are found then the corresponding
-//! [`Vec`]s for the [`Mesh`] will be empty.
+//! [`Vec`](Mesh::normals)s for the [`Mesh`] will be empty.
 //!
 //! ## Flat Data
 //!
@@ -31,7 +31,7 @@
 //! ## Indices
 //!
 //! Indices are also loaded and may re-use vertices already existing in the
-//! mesh, this data is stored in the `indices` member.
+//! mesh, this data is stored in the [`indices`](Mesh::indices) member.
 //!
 //! When a `Mesh` contains *per vertex per face* normals or texture coordinates,
 //! positions can be duplicated to be *per vertex per face* too via the
@@ -175,9 +175,9 @@
 //!
 //! ## Features
 //!
-//! * `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
+//! * [`ahash`](https://crates.io/crates/ahash) – On by default. Use [`AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
 //!   for hashing when reading files and merging vertices. To disable and use
-//!   the slower [`std::collections::HashMap`] instead, unset default
+//!   the slower [`HashMap`](std::collections::HashMap) instead, unset default
 //! features in `Cargo.toml`:
 //!
 //!   ```toml
@@ -213,10 +213,10 @@ use std::{
 use std::mem::size_of;
 
 #[cfg(feature = "ahash")]
-pub type HashMap<K, V> = ahash::AHashMap<K, V>;
+type HashMap<K, V> = ahash::AHashMap<K, V>;
 
 #[cfg(not(feature = "ahash"))]
-pub type HashMap<K, V> = std::collections::HashMap<K, V>;
+type HashMap<K, V> = std::collections::HashMap<K, V>;
 
 /// A mesh made up of triangles loaded from some `OBJ` file.
 ///
@@ -458,8 +458,9 @@ impl LoadOptions {
     /// Checks if the given `LoadOptions` do not contain mutually exclusive flag
     /// settings.
     ///
-    /// This is called by `load_obj()`/`load_obj_buf()` in any case. This method
-    /// is only exposed for scenarios where you want to do this check yourself.
+    /// This is called by [`load_obj()`]/[`load_obj_buf()`] in any case. This
+    /// method is only exposed for scenarios where you want to do this check
+    /// yourself.
     pub fn is_valid(&self) -> bool {
         // A = single_index, B = merge_identical_points, C = reorder_data
         // (A ∧ ¬B) ∨ (A ∧ ¬C) -> A ∧ ¬(B ∨ C)
