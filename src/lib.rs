@@ -358,8 +358,10 @@ pub struct LoadOptions {
     /// *offline rendering* context or to do further processing with
     /// *topological operators*.
     ///
-    /// * This flag has *no effect* if
-    ///   [`single_index`](LoadOptions::single_index) is set!
+    /// * This flag is *mutually exclusive* with
+    ///   [`single_index`](LoadOptions::single_index) and will lead to a
+    ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
+    ///   if both are set to `true`.
     ///
     /// * If adjacent faces share vertices that have separate `indices` but the
     ///   same position in 3D they will be merged into a single vertex and the
@@ -371,8 +373,11 @@ pub struct LoadOptions {
     pub merge_identical_points: bool,
     /// Normal & texture coordinates will be reordered to allow omitting their
     /// indices.
-    /// * This flag has *no effect* if
-    ///   [`single_index`](LoadOptions::single_index) is set!
+    ///
+    /// * This flag is *mutually exclusive* with
+    ///   [`single_index`](LoadOptions::single_index) and will lead to a
+    ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
+    ///   if both are set to `true`.
     ///
     /// * The resulting [`Mesh`]'s `normal_indices` and/or `texcoord_indices`
     ///   will be empty.
@@ -401,6 +406,12 @@ pub struct LoadOptions {
     ///
     /// This is usually what you want if you are loading the mesh to display in
     /// a *realtime* (*GPU*) context.
+    ///
+    /// * This flag is *mutually exclusive* with both
+    ///   [`merge_identical_points`](LoadOptions::merge_identical_points) and
+    ///   [`reorder_data`](LoadOptions::reorder_data) resp. and will lead to a
+    ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
+    ///   if both it and either of the two other are set to `true`.
     ///
     /// * Vertices may get duplicated to match the granularity.
     ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
