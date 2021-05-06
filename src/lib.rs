@@ -57,13 +57,17 @@
 //! combined together, see them for a version that also prints out normals and
 //! texture coordinates if the model has them.
 //!
+//! The [`LoadOptions`] used are typical for the case when the mesh is going to
+//! be sent to a realtime rendering context (game engine, GPU etc.).
+//!
 //! ```
 //! use tobj;
 //!
 //! let cornell_box = tobj::load_obj(
-//!     "cornell_box.obj",
+//!     "obj/cornell_box.obj",
 //!     &tobj::LoadOptions {
 //!         single_index: true,
+//!         triangulate: true,
 //!         ..Default::default()
 //!     },
 //! );
@@ -145,16 +149,16 @@
 //!
 //! ## Rendering Examples
 //!
-//! For an example of integration with [glium](https://github.com/tomaka/glium) to make a simple OBJ viewer,
-//! check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer). Some sample images can be found in
-//! tobj viewer's readme or in [this gallery](http://imgur.com/a/xsg6v).
+//! For an example of integration with [glium](https://github.com/tomaka/glium)
+//! to make a simple OBJ viewer, check out [`tobj viewer`](https://github.com/Twinklebear/tobj_viewer).
+//! Some more sample images can be found in [this gallery](http://imgur.com/a/xsg6v).
 //!
 //! The Rungholt model shown below is reasonably large (6.7M triangles, 12.3M
 //! vertices) and is loaded in ~7.47s using a peak of ~1.1GB of memory on a
 //! Windows 10 machine with an i7-4790k and 16GB of 1600Mhz DDR3 RAM with tobj
-//! 0.1.1 on rustc 1.6.0. The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml) meshes page and
-//! was originally built by kescha. Future work will focus on improving
-//! performance and memory usage.
+//! 0.1.1 on rustc 1.6.0. The model can be found on [Morgan McGuire's](http://graphics.cs.williams.edu/data/meshes.xml)
+//! meshes page and was originally built by kescha. Future work will focus on
+//! improving performance and memory usage.
 //!
 //! <img src="http://i.imgur.com/wImyNG4.png" alt="Rungholt"
 //!     style="display:block; max-width:100%; height:auto">
@@ -162,9 +166,8 @@
 //! For an example of integration within a ray tracer, check out tray\_rust's
 //! [mesh module](https://github.com/Twinklebear/tray_rust/blob/master/src/geometry/mesh.rs).
 //! The Stanford Buddha and Dragon from the
-//! [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) both load quite quickly.
-//! The Rust logo model was made by
-//! [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
+//! [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/)
+//! both load quite quickly. The Rust logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
 //! The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
 //!
 //! <img src="http://i.imgur.com/E1ylrZW.png" alt="Rust logo with friends"
@@ -182,21 +185,20 @@
 //!   default-features = false
 //!   ```
 //!
-//! * `merging` – Adds support for merging identical vertex positions on
-//!   disconnected faces during import. See
-//!   [`merge_identical_points`](LoadOptions::merge_identical_points).
+//! * [`merging`](LoadOptions::merge_identical_points) – Adds support for
+//!   merging identical vertex positions on disconnected faces during import.
 //!
 //!   **Warning:** this feature uses *const generics* and thus requires at
 //!   least a `beta` toolchain to build.
 //!
-//! * `reordering` – Adds support for reordering the normal- and texture
-//!   coordinate indices. See [`reorder_data`](LoadOptions::reorder_data).
-#![feature(test)]
+//! * [`reordering`](LoadOptions::reorder_data) – Adds support for reordering
+//!   the normal- and texture coordinate indices.
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
 #![cfg_attr(feature = "merging", feature(const_generics))]
 #![cfg_attr(feature = "merging", feature(const_evaluatable_checked))]
 
-extern crate test;
+#[cfg(test)]
+mod tests;
 
 use std::{
     error::Error,
@@ -236,7 +238,7 @@ pub type HashMap<K, V> = std::collections::HashMap<K, V>;
 ///
 /// ```
 /// let cornell_box = tobj::load_obj(
-///     "cornell_box.obj",
+///     "obj/cornell_box.obj",
 ///     &tobj::LoadOptions {
 ///         triangulate: true,
 ///         single_index: true,
@@ -345,7 +347,7 @@ impl Default for Mesh {
 /// Use the [init struct pattern](https://xaeroxe.github.io/init-struct-pattern/) to set individual options:
 /// ```ignore
 /// LoadOptions {
-///     merge_identical_points: true,
+///     single_index: true,
 ///     ..Default::default()
 /// }
 #[derive(Debug, Clone, Copy)]
@@ -371,10 +373,13 @@ pub struct LoadOptions {
     /// indices.
     /// * This flag has *no effect* if
     ///   [`single_index`](LoadOptions::single_index) is set!
+    ///
     /// * The resulting [`Mesh`]'s `normal_indices` and/or `texcoord_indices`
     ///   will be empty.
+    ///
     /// * *Per-vertex* normals and/or texture_coordinates will be reordered to
     ///   match the `Mesh`'s `indices`.
+    ///
     /// * *Per-vertex-per-face*  normals and/or texture coordinates indices will
     ///   be `[0, 1, 2, ..., n]. I.e.:
     ///
@@ -431,6 +436,31 @@ pub struct LoadOptions {
     /// Polygon meshes that contains faces with two verticesx only usually do so
     /// because of bad topology.
     pub ignore_lines: bool,
+}
+
+impl LoadOptions {
+    /// Checks if the given `LoadOptions` do not contain mutually exclusive flag
+    /// settings.
+    ///
+    /// This is called by `load_obj()`/`load_obj_buf()` in any case. This method
+    /// is only exposed for scenarios where you want to do this check yourself.
+    pub fn is_valid(&self) -> bool {
+        // A = single_index, B = merge_identical_points, C = reorder_data
+        // (A ∧ ¬B) ∨ (A ∧ ¬C) -> A ∧ ¬(B ∨ C)
+        #[allow(unused_mut)]
+        let mut other_flags = false;
+
+        #[cfg(feature = "merging")]
+        {
+            other_flags = other_flags || self.merge_identical_points;
+        }
+        #[cfg(feature = "reordering")]
+        {
+            other_flags = other_flags || self.reorder_data;
+        }
+
+        (self.single_index != other_flags) || (!self.single_index && !other_flags)
+    }
 }
 
 impl Default for LoadOptions {
@@ -554,6 +584,7 @@ pub enum LoadError {
     FaceVertexOutOfBounds,
     FaceTexCoordOutOfBounds,
     FaceNormalOutOfBounds,
+    InvalidLoadOptionConfig,
     GenericFailure,
 }
 
@@ -572,6 +603,7 @@ impl fmt::Display for LoadError {
             LoadError::FaceVertexOutOfBounds => "face vertex index out of bounds",
             LoadError::FaceTexCoordOutOfBounds => "face texcoord index out of bounds",
             LoadError::FaceNormalOutOfBounds => "face normal index out of bounds",
+            LoadError::InvalidLoadOptionConfig => "mutually exclusive load options",
             LoadError::GenericFailure => "generic failure",
         };
 
@@ -866,6 +898,7 @@ fn export_faces(
 /// Add a vertex to a mesh by either re-using an existing index (e.g. it's in
 /// the `index_map`) or appending the position, texcoord and normal as
 /// appropriate and creating a new vertex.
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn add_vertex_multi_index(
     mesh: &mut Mesh,
@@ -1397,22 +1430,8 @@ where
 ///
 /// # Arguments
 ///
-/// * `create_multiple_indices` - Create additional indices for normals and
-///   texture coordinates if those are present.
-///
-///   This also guarantees that the original topology in any [`Mesh`]'s
-/// `indices` member remains unchanged. I.e. connectivity information is
-/// retained.
-///
-///   The resulting data is then in a format suitable for offline renderers.
-/// If intended to be rendered as a subdivison surface or with displacement
-/// shaders, specifying this flag will probably be mandatory.
-///
 /// * `load_options` – Governs on-the-fly processing of the mesh during loading.
 ///   See [`LoadOptions`] for more information.
-///
-///   A side effect of this flag is that 'line' like faces (with two vertices)
-/// will be expanded to triangles by duplicating the last vertex.
 pub fn load_obj<P>(file_name: P, load_options: &LoadOptions) -> LoadResult
 where
     P: AsRef<Path> + fmt::Debug,
@@ -1472,7 +1491,8 @@ where
 /// Alternatively it could pass an `MTL` file in memory to `load_mtl_buf` to
 /// parse materials from some buffer.
 ///
-/// For flags see [`load_obj`].
+/// * `load_options` – Governs on-the-fly processing of the mesh during loading.
+///   See [`LoadOptions`] for more information.
 ///
 /// # Example
 /// The test for `load_obj_buf` includes the OBJ and MTL files as strings
@@ -1483,14 +1503,14 @@ where
 ///
 /// let dir = env::current_dir().unwrap();
 /// let mut cornell_box_obj = dir.clone();
-/// cornell_box_obj.push("cornell_box.obj");
+/// cornell_box_obj.push("obj/cornell_box.obj");
 /// let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 ///
 /// let mut cornell_box_mtl1 = dir.clone();
-/// cornell_box_mtl1.push("cornell_box.mtl");
+/// cornell_box_mtl1.push("obj/cornell_box.mtl");
 ///
 /// let mut cornell_box_mtl2 = dir.clone();
-/// cornell_box_mtl2.push("cornell_box2.mtl");
+/// cornell_box_mtl2.push("obj/cornell_box2.mtl");
 ///
 /// let m = tobj::load_obj_buf(
 ///     &mut cornell_box_file,
@@ -1521,6 +1541,10 @@ where
     B: BufRead,
     ML: Fn(&Path) -> MTLLoadResult,
 {
+    if !load_options.is_valid() {
+        return Err(LoadError::InvalidLoadOptionConfig);
+    }
+
     let mut models = Vec::new();
     let mut materials = Vec::new();
     let mut mat_map = HashMap::new();
