@@ -1,17 +1,17 @@
 //! # Tiny OBJ Loader
 //!
 //! A tiny OBJ loader, inspired by Syoyo's excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
-//! Aims to be a simple and lightweight option for loading `OBJ` files. Just
-//! returns two `Vec`s containing loaded models and materials.
+//! Aims to be a simple and lightweight option for loading `OBJ` files.
+//!
+//! Just returns two `Vec`s containing loaded models and materials.
 //!
 //! ## Triangulation
 //!
 //! Meshes can be triangulated on the fly or left as-is.
 //!
-//! Note that only polygons that are trivially convertible to triangle fans are
-//! supported. Arbitrary polygons may not behave as expected. The best solution
-//! would be to re-export your mesh using only triangles in your modeling
-//! software.
+//! Only polygons that are trivially convertible to triangle fans are supported.
+//! Arbitrary polygons may not behave as expected. The best solution would be to
+//! convert your mesh to solely consist of triangles in your modeling software.
 //!
 //! ## Optional – Normals & Texture Coordinates
 //!
@@ -419,13 +419,18 @@ pub struct LoadOptions {
     ///
     /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
     ///   empty as all faces are guranteed to have arity `3`.
+    ///
+    /// * Only polygons that are trivially convertible to triangle fans are
+    ///   supported. Arbitrary polygons may not behave as expected. The best
+    ///   solution would be to convert your mesh to solely consist of triangles
+    ///   in your modeling software.
     pub triangulate: bool,
     /// Ignore faces containing only a single vertex (points).
     ///
     /// This is usually what you want if you do *not* intend to make special use
     /// of the point data (e.g. as particles etc.).
     ///
-    /// Polygon meshes that contains faces with one vertex only usually do so
+    /// Polygon meshes that contain faces with one vertex only usually do so
     /// because of bad topology.
     pub ignore_points: bool,
     /// Ignore faces containing only two vertices (lines).

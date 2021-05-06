@@ -4,16 +4,18 @@
 ![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
 
 Inspired by Syoyo’s excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
-Aims to be a simple and lightweight option for loading `OBJ` files. Just returns
-two `Vec`s containing loaded models and materials.
+Aims to be a simple and lightweight option for loading `OBJ` files.
+
+Just returns two `Vec`s containing loaded models and materials.
 
 ## Triangulation
 
 Meshes can be triangulated on the fly or left as-is.
 
-Note that only polygons that are trivially convertible to triangle fans are
-supported. Arbitrary polygons may not behave as expected. The best solution
-would be to re-export your mesh using only triangles in your modeling software.
+Only polygons that are trivially convertible to triangle fans are supported.
+Arbitrary polygons may not behave as expected. The best solution would be to
+convert your mesh to solely consist of triangles in your modeling
+software.
 
 ## Optional – Normals & Texture Coordinates
 
@@ -93,7 +95,11 @@ fn main() {
         .expect("A .obj file to print is required");
 
     let (models, materials) =
-        tobj::load_obj(&obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
+        tobj::load_obj(
+            &obj_file,
+            &tobj::LoadOptions::default()
+        )
+        .expect("Failed to OBJ load file");
 
     // Note: If you don't mind missing the materials, you can generate a default.
     let materials = materials.expect("Failed to load MTL file");
