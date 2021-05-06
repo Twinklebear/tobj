@@ -54,10 +54,12 @@ parameter and its value.
 
 ## Features
 
-* `ahash` – On by default. Use [`ahash::AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
-   for hashing when reading files and merging vertices. To disable and use
-   the slower `std::collections::HashMap` instead, unset default features in
-   `Cargo.toml`:
+*  [`ahash`](https://crates.io/crates/ahash) – On by default. Use
+   [`AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html) for
+   hashing when reading files and merging vertices. To disable and use the
+   slower
+   [`HashMap`](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html)
+   instead, unset default features in `Cargo.toml`:
 
    ```toml
    [dependencies.tobj]
