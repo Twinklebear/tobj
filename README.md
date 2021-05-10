@@ -8,6 +8,23 @@ Aims to be a simple and lightweight option for loading `OBJ` files.
 
 Just returns two `Vec`s containing loaded models and materials.
 
+## What is in This Fork?
+
+Five new (optional) features, all behind flags in a settings struct passed
+to the `load_obj*()` functions. Most of them arose as needs when trying to
+use OBJ files in the wild with
+[`opensubdiv-petite`](https://github.com/virtualritz/opensubdiv-petite).
+* Merging of vertices that share a point in space (changes topology).
+* Separate indices for normals & texture coordinates.
+* Reordering of indices so they can be omitted completely.
+* Filtering out of points and/or lines (changes topology).
+* Blowing up points and lines to (degenerate) triangles (changes topology).
+
+I have [a PR](https://github.com/Twinklebear/tobj/pull/42) open for all this
+with upstream.
+
+:warning: Caveat: once this is merged, this repository will be deleted.
+
 ## Triangulation
 
 Meshes can be triangulated on the fly or left as-is.
