@@ -1,17 +1,24 @@
-extern crate tobj;
+use std::{
+    env,
+    fs::File,
+    io::{BufReader, Cursor},
+};
 
-use std::env;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::Cursor;
+use crate as tobj;
 
-const CORNELL_BOX_OBJ: &'static str = include_str!("../cornell_box.obj");
-const CORNELL_BOX_MTL1: &'static str = include_str!("../cornell_box.mtl");
-const CORNELL_BOX_MTL2: &'static str = include_str!("../cornell_box2.mtl");
+const CORNELL_BOX_OBJ: &'static str = include_str!("../obj/cornell_box.obj");
+const CORNELL_BOX_MTL1: &'static str = include_str!("../obj/cornell_box.mtl");
+const CORNELL_BOX_MTL2: &'static str = include_str!("../obj/cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
-    let m = tobj::load_obj("triangle.obj", true);
+    let m = tobj::load_obj(
+        "obj/triangle.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -35,7 +42,13 @@ fn simple_triangle() {
 
 #[test]
 fn empty_name_triangle() {
-    let m = tobj::load_obj("empty_name_triangle.obj", true);
+    let m = tobj::load_obj(
+        "obj/empty_name_triangle.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -59,7 +72,13 @@ fn empty_name_triangle() {
 
 #[test]
 fn test_lines() {
-    let m = tobj::load_obj("lines.obj", true);
+    let m = tobj::load_obj(
+        "obj/lines.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -83,7 +102,13 @@ fn test_lines() {
 
 #[test]
 fn non_triangulated_quad() {
-    let m = tobj::load_obj("quad.obj", false);
+    let m = tobj::load_obj(
+        "obj/quad.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -91,24 +116,29 @@ fn non_triangulated_quad() {
     assert!(mats.is_empty());
 
     // First one is a quad formed by two triangles
-    assert_eq!(models[0].mesh.num_face_indices.len(), 2);
-    assert_eq!(models[0].mesh.num_face_indices[0], 3);
-    assert_eq!(models[0].mesh.num_face_indices[1], 3);
+    // so face_arities is empty (all trinagles)
+    assert!(models[0].mesh.face_arities.is_empty());
 
     // Second is a quad face
-    assert_eq!(models[1].mesh.num_face_indices.len(), 1);
-    assert_eq!(models[1].mesh.num_face_indices[0], 4);
+    assert_eq!(models[1].mesh.face_arities.len(), 1);
+    assert_eq!(models[1].mesh.face_arities[0], 4);
     let expect_quad_indices = vec![0, 1, 2, 3];
     assert_eq!(models[1].mesh.indices, expect_quad_indices);
 
     // Third is a triangle
-    assert_eq!(models[2].mesh.num_face_indices.len(), 1);
-    assert_eq!(models[2].mesh.num_face_indices[0], 3);
+    assert!(models[2].mesh.face_arities.is_empty());
 }
 
 #[test]
 fn multiple_face_formats() {
-    let m = tobj::load_obj("quad.obj", true);
+    let m = tobj::load_obj(
+        "obj/quad.obj",
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -331,7 +361,14 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
 
 #[test]
 fn test_cornell() {
-    let m = tobj::load_obj("cornell_box.obj", true);
+    let m = tobj::load_obj(
+        "obj/cornell_box.obj",
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -342,13 +379,19 @@ fn test_cornell() {
 
 #[test]
 fn test_custom_material_loader() {
-    let m = tobj::load_obj_buf(&mut Cursor::new(CORNELL_BOX_OBJ), true, |p| {
-        match p.to_str().unwrap() {
+    let m = tobj::load_obj_buf(
+        &mut Cursor::new(CORNELL_BOX_OBJ),
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+        |p| match p.to_str().unwrap() {
             "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
             "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
             _ => unreachable!(),
-        }
-    });
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -361,17 +404,23 @@ fn test_custom_material_loader() {
 fn test_custom_material_loader_files() {
     let dir = env::current_dir().unwrap();
     let mut cornell_box_obj = dir.clone();
-    cornell_box_obj.push("cornell_box.obj");
+    cornell_box_obj.push("obj/cornell_box.obj");
     let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 
     let mut cornell_box_mtl1 = dir.clone();
-    cornell_box_mtl1.push("cornell_box.mtl");
+    cornell_box_mtl1.push("obj/cornell_box.mtl");
 
     let mut cornell_box_mtl2 = dir.clone();
-    cornell_box_mtl2.push("cornell_box2.mtl");
+    cornell_box_mtl2.push("obj/cornell_box2.mtl");
 
-    let m = tobj::load_obj_buf(&mut cornell_box_file, true, |p| {
-        match p.file_name().unwrap().to_str().unwrap() {
+    let m = tobj::load_obj_buf(
+        &mut cornell_box_file,
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+        |p| match p.file_name().unwrap().to_str().unwrap() {
             "cornell_box.mtl" => {
                 let f = File::open(cornell_box_mtl1.as_path()).unwrap();
                 tobj::load_mtl_buf(&mut BufReader::new(f))
@@ -381,8 +430,8 @@ fn test_custom_material_loader_files() {
                 tobj::load_mtl_buf(&mut BufReader::new(f))
             }
             _ => unreachable!(),
-        }
-    });
+        },
+    );
     assert!(m.is_ok());
     let (models, mats) = m.unwrap();
     let mats = mats.unwrap();
@@ -393,7 +442,14 @@ fn test_custom_material_loader_files() {
 
 #[test]
 fn test_invalid_index() {
-    let m = tobj::load_obj("invalid_index.obj", true);
+    let m = tobj::load_obj(
+        "obj/invalid_index.obj",
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+    );
     assert!(m.is_err());
     let err = m.err().unwrap();
     assert_eq!(err, tobj::LoadError::FaceVertexOutOfBounds);

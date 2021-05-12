@@ -1,46 +1,71 @@
-extern crate tobj;
-
-use std::env;
-
 fn main() {
-    let obj_file = env::args()
+    let obj_file = std::env::args()
         .skip(1)
         .next()
         .expect("A .obj file to print is required");
-    let (models, materials) = tobj::load_obj(&obj_file, false).expect("Failed to OBJ load file");
-    // Note: If you don't mind missing the materials, you can generate a default
+
+    let (models, materials) =
+        tobj::load_obj(&obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
+
+    // Note: If you don't mind missing the materials, you can generate a default.
     let materials = materials.expect("Failed to load MTL file");
 
-    println!("# of models: {}", models.len());
-    println!("# of materials: {}", materials.len());
+    println!("Number of models          = {}", models.len());
+    println!("Number of materials       = {}", materials.len());
+
     for (i, m) in models.iter().enumerate() {
         let mesh = &m.mesh;
-        println!("model[{}].name = \'{}\'", i, m.name);
+        println!("");
+        println!("model[{}].name             = \'{}\'", i, m.name);
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 
         println!(
-            "Size of model[{}].num_face_indices: {}",
+            "model[{}].face_count       = {}",
             i,
-            mesh.num_face_indices.len()
+            mesh.face_arities.len()
         );
+
         let mut next_face = 0;
-        for f in 0..mesh.num_face_indices.len() {
-            let end = next_face + mesh.num_face_indices[f] as usize;
-            let face_indices: Vec<_> = mesh.indices[next_face..end].iter().collect();
-            println!("    face[{}] = {:?}", f, face_indices);
+        for face in 0..mesh.face_arities.len() {
+            let end = next_face + mesh.face_arities[face] as usize;
+
+            let face_indices = &mesh.indices[next_face..end];
+            println!(" face[{}].indices          = {:?}", face, face_indices);
+
+            if !mesh.texcoord_indices.is_empty() {
+                let texcoord_face_indices = &mesh.texcoord_indices[next_face..end];
+                println!(
+                    " face[{}].texcoord_indices = {:?}",
+                    face, texcoord_face_indices
+                );
+            }
+            if !mesh.normal_indices.is_empty() {
+                let normal_face_indices = &mesh.normal_indices[next_face..end];
+                println!(
+                    " face[{}].normal_indices   = {:?}",
+                    face, normal_face_indices
+                );
+            }
+
             next_face = end;
         }
 
-        // Normals and texture coordinates are also loaded, but not printed in this example
-        println!("model[{}].vertices: {}", i, mesh.positions.len() / 3);
+        // Normals and texture coordinates are also loaded, but not printed in
+        // this example.
+        println!(
+            "model[{}].positions        = {}",
+            i,
+            mesh.positions.len() / 3
+        );
         assert!(mesh.positions.len() % 3 == 0);
-        for v in 0..mesh.positions.len() / 3 {
+
+        for vtx in 0..mesh.positions.len() / 3 {
             println!(
-                "    v[{}] = ({}, {}, {})",
-                v,
-                mesh.positions[3 * v],
-                mesh.positions[3 * v + 1],
-                mesh.positions[3 * v + 2]
+                "              position[{}] = ({}, {}, {})",
+                vtx,
+                mesh.positions[3 * vtx],
+                mesh.positions[3 * vtx + 1],
+                mesh.positions[3 * vtx + 2]
             );
         }
     }
@@ -67,6 +92,7 @@ fn main() {
         println!("    material.map_Ns = {}", m.shininess_texture);
         println!("    material.map_Bump = {}", m.normal_texture);
         println!("    material.map_d = {}", m.dissolve_texture);
+
         for (k, v) in &m.unknown_param {
             println!("    material.{} = {}", k, v);
         }
