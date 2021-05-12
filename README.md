@@ -196,29 +196,3 @@ fn main() {
 }
 ```
 
-## Rendering Examples
-
-For an example of integration with [glium](https://github.com/tomaka/glium) to
-make a simple OBJ viewer, check out [tobj viewer](https://github.com/Twinklebear/tobj_viewer).
-
-A sample image from the viewer is shown below. The [Rungholt](http://graphics.cs.williams.edu/data/meshes.xml)
-model can be found on Morgan McGuire’s meshes page and was originally built by
-kescha.
-
-The Rungholt model is reasonably large (6.7M triangles, 12.3M vertices) and is
-loaded in ~7.47s using a peak of ~1.1GB of memory on a Windows 10 machine with
-an i7-4790k and 16GB of 1600Mhz DDR3 RAM with `tobj 0.1.1` on `rustc 1.6.0`.
-
-![Rungholt](http://i.imgur.com/wImyNG4.png)
-
-For an example of integration within a ray tracer, check out tray\_rust’s
-[mesh module](https://github.com/Twinklebear/tray_rust/blob/master/src/geometry/mesh.rs).
-
-The Stanford Buddha and Dragon from the [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/)
-both load quite quickly.
-
-The Rust logo model was made by [Nylithius on BlenderArtists](http://blenderartists.org/forum/showthread.php?362836-Rust-language-3D-logo).
-
-The materials used are from the [MERL BRDF Database](http://www.merl.com/brdf/).
-
-![Rust Logo with friends](http://i.imgur.com/E1ylrZW.png)
