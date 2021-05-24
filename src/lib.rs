@@ -386,7 +386,7 @@ pub struct LoadOptions {
     ///   match the `Mesh`'s `indices`.
     ///
     /// * *Per-vertex-per-face*  normals and/or texture coordinates indices will
-    ///   be `[0, 1, 2, ..., n]. I.e.:
+    ///   be `[0, 1, 2, ..., n]`. I.e.:
     ///
     ///   ```ignore
     ///   // If normals where specified per-vertex-per-face:
@@ -1358,8 +1358,8 @@ fn reorder_data(mesh: &mut Mesh) {
     // Clear indices.
     mesh.texcoord_indices = Vec::new();
 
-    // If we have per face per vertex data for UVs ...
-    if mesh.positions.len() < mesh.texcoords.len() {
+    // If we have per face per vertex data for normals ...
+    if mesh.positions.len() < mesh.normals.len() {
         mesh.normals = mesh
             .normal_indices
             .iter()
@@ -1373,7 +1373,7 @@ fn reorder_data(mesh: &mut Mesh) {
             })
             .collect::<Vec<_>>();
     } else {
-        assert!(mesh.texcoords.len() == mesh.positions.len());
+        assert!(mesh.normals.len() == mesh.positions.len());
 
         let mut new_normals = vec![0.0; mesh.positions.len()];
         mesh.normal_indices
