@@ -291,7 +291,7 @@ pub struct Mesh {
     /// specified this will be empty.
     pub texcoords: Vec<f32>,
     /// Indices for vertices of each face. If loaded with
-    /// [`triangulate`](LoadOptions::triangulate) set to `true`.each face in the
+    /// [`triangulate`](LoadOptions::triangulate) set to `true` each face in the
     /// mesh is a triangle.
     ///
     /// Otherwise [`face_arities`](Mesh::face_arities) indicates how many
@@ -323,7 +323,7 @@ pub struct Mesh {
 }
 
 impl Default for Mesh {
-    /// Create a new, empty mesh
+    /// Create a new, empty mesh.
     fn default() -> Self {
         Self {
             positions: Vec::new(),
@@ -339,6 +339,8 @@ impl Default for Mesh {
 }
 
 /// Options for processing the mesh during loading.
+///
+/// Passed to [`load_obj()`] and [`load_obj_buf()`].
 ///
 /// By default, all of these are `false`. With those settings, the data you get
 /// represents the original data in the input file/buffer as closely as
@@ -375,7 +377,7 @@ pub struct LoadOptions {
     /// indices.
     ///
     /// * This flag is *mutually exclusive* with
-    ///   [`single_index`](LoadOptions::single_index) and will lead to a
+    ///   [`single_index`](LoadOptions::single_index) and will lead to an
     ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
     ///   if both are set to `true`.
     ///
@@ -413,7 +415,7 @@ pub struct LoadOptions {
     ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
     ///   if both it and either of the two other are set to `true`.
     ///
-    /// * Vertices may get duplicated to match the granularity.
+    /// * Vertices may get duplicated to match the granularity
     ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
     ///
     /// * Topolgy may change as a result (faces may become *disconnected* in the
@@ -449,7 +451,7 @@ pub struct LoadOptions {
     /// This is usually what you want if you do *not* intend to make special use
     /// of the line data (e.g. as wires/ropes etc.).
     ///
-    /// Polygon meshes that contains faces with two verticesx only usually do so
+    /// Polygon meshes that contains faces with two vertices only usually do so
     /// because of bad topology.
     pub ignore_lines: bool,
 }
@@ -1405,7 +1407,7 @@ where
         return;
     }
 
-    let mut compressed_indicess = Vec::new();
+    let mut compressed_indices = Vec::new();
     let mut canonical_indices = HashMap::<[u8; size_of::<[f32; N]>()], u32>::new();
 
     let mut index = 0;
@@ -1420,12 +1422,12 @@ where
 
             match canonical_indices.get(bitpattern) {
                 Some(&other_index) => {
-                    compressed_indicess.push(other_index);
+                    compressed_indices.push(other_index);
                     None
                 }
                 None => {
                     canonical_indices.insert(*bitpattern, index);
-                    compressed_indicess.push(index);
+                    compressed_indices.push(index);
                     index += 1;
                     Some(std::array::IntoIter::new(*position))
                 }
@@ -1436,7 +1438,7 @@ where
 
     indices
         .iter_mut()
-        .for_each(|vertex| *vertex = compressed_indicess[*vertex as usize]);
+        .for_each(|vertex| *vertex = compressed_indices[*vertex as usize]);
 }
 
 /// Load the various objects specified in the `OBJ` file and any associated
