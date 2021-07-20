@@ -78,6 +78,56 @@ fn simple_triangle_colored() {
 }
 
 #[test]
+#[cfg(feature = "merging")]
+fn simple_quad_colored_merge() {
+    let m = tobj::load_obj(
+        "obj/quad_colored_merge.obj",
+        &tobj::LoadOptions {
+            merge_identical_points: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
+    // We expect a single model with no materials
+    assert_eq!(models.len(), 1);
+    assert!(mats.is_empty());
+    // Confirm our quad is loaded correctly
+    assert_eq!(models[0].name, "Quad");
+    let mesh = &models[0].mesh;
+    assert_eq!(mesh.normals.len(), 3);
+    assert!(mesh.texcoords.is_empty());
+    assert_eq!(mesh.material_id, None);
+
+    // Verify each position is loaded properly and merged, with the exception of
+    // the 2nd and 4th vertices which have different vertex colors.
+    #[rustfmt::skip]
+    let expect_pos = vec![
+        0.0, 0.0, 0.0,
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        1.0, 0.0, 0.0,
+        1.0, 1.0, 0.0,
+    ];
+    assert_eq!(mesh.positions, expect_pos);
+    // Verify the indices are loaded properly
+    let expect_idx = vec![0, 1, 2, 3, 1, 4];
+    assert_eq!(mesh.indices, expect_idx);
+
+    // Verify vertex colors are loaded
+    #[rustfmt::skip]
+    let expect_vertex_color = vec![
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0,
+        1.0, 1.0, 1.0,
+    ];
+    assert_eq!(mesh.vertex_color, expect_vertex_color);
+}
+
+#[test]
 fn empty_name_triangle() {
     let m = tobj::load_obj(
         "obj/empty_name_triangle.obj",
