@@ -317,6 +317,11 @@ pub struct Mesh {
     /// through the `face_arities` until reaching the desired face, accumulating
     /// the number of vertices used so far.
     pub face_arities: Vec<u32>,
+    /// The indices for vertex colors. Only present when the
+    /// [`merging`](LoadOptions::merge_identical_points) feature is enabled, and
+    /// empty unless the corresponding load option is set to `true`.
+    #[cfg(feature = "merging")]
+    pub vertex_color_indices: Vec<u32>,
     /// The indices for texture coordinates. Can be omitted by setting
     /// `single_index` to `true`.
     pub texcoord_indices: Vec<u32>,
@@ -338,6 +343,8 @@ impl Default for Mesh {
             texcoords: Vec::new(),
             indices: Vec::new(),
             face_arities: Vec::new(),
+            #[cfg(feature = "merging")]
+            vertex_color_indices: Vec::new(),
             normal_indices: Vec::new(),
             texcoord_indices: Vec::new(),
             material_id: None,
@@ -1363,6 +1370,10 @@ fn export_faces_multi_index(
 
     #[cfg(feature = "merging")]
     if load_options.merge_identical_points {
+        if !mesh.vertex_color.is_empty() {
+            mesh.vertex_color_indices = mesh.indices.clone();
+            merge_identical_points::<3>(&mut mesh.vertex_color, &mut mesh.vertex_color_indices);
+        }
         merge_identical_points::<3>(&mut mesh.positions, &mut mesh.indices);
         merge_identical_points::<3>(&mut mesh.normals, &mut mesh.normal_indices);
         merge_identical_points::<2>(&mut mesh.texcoords, &mut mesh.texcoord_indices);

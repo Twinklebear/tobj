@@ -107,15 +107,14 @@ fn simple_quad_colored_merge() {
         0.0, 0.0, 0.0,
         1.0, 0.0, 0.0,
         0.0, 1.0, 0.0,
-        1.0, 0.0, 0.0,
         1.0, 1.0, 0.0,
     ];
     assert_eq!(mesh.positions, expect_pos);
     // Verify the indices are loaded properly
-    let expect_idx = vec![0, 1, 2, 3, 1, 4];
+    let expect_idx = vec![0, 1, 2, 1, 2, 3];
     assert_eq!(mesh.indices, expect_idx);
 
-    // Verify vertex colors are loaded
+    // Verify vertex colors are loaded and correctly indexed.
     #[rustfmt::skip]
     let expect_vertex_color = vec![
         1.0, 0.0, 0.0,
@@ -125,6 +124,8 @@ fn simple_quad_colored_merge() {
         1.0, 1.0, 1.0,
     ];
     assert_eq!(mesh.vertex_color, expect_vertex_color);
+    let expect_vertex_color_index = vec![0, 1, 2, 3, 2, 4];
+    assert_eq!(mesh.vertex_color_indices, expect_vertex_color_index);
 }
 
 #[test]
