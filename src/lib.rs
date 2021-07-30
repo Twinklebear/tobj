@@ -278,6 +278,12 @@ pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing positions of
     /// vertices in the mesh.
     pub positions: Vec<f32>,
+    /// Flattened 3 component floating point vectors, storing the color
+    /// associated with the vertices in the mesh.
+    ///
+    /// Most meshes do not have vertex colors. If no vertex colors are specified
+    /// this will be empty.
+    pub vertex_color: Vec<f32>,
     /// Flattened 3 component floating point vectors, storing normals of
     /// vertices in the mesh.
     ///
@@ -311,6 +317,11 @@ pub struct Mesh {
     /// through the `face_arities` until reaching the desired face, accumulating
     /// the number of vertices used so far.
     pub face_arities: Vec<u32>,
+    /// The indices for vertex colors. Only present when the
+    /// [`merging`](LoadOptions::merge_identical_points) feature is enabled, and
+    /// empty unless the corresponding load option is set to `true`.
+    #[cfg(feature = "merging")]
+    pub vertex_color_indices: Vec<u32>,
     /// The indices for texture coordinates. Can be omitted by setting
     /// `single_index` to `true`.
     pub texcoord_indices: Vec<u32>,
@@ -327,10 +338,13 @@ impl Default for Mesh {
     fn default() -> Self {
         Self {
             positions: Vec::new(),
+            vertex_color: Vec::new(),
             normals: Vec::new(),
             texcoords: Vec::new(),
             indices: Vec::new(),
             face_arities: Vec::new(),
+            #[cfg(feature = "merging")]
+            vertex_color_indices: Vec::new(),
             normal_indices: Vec::new(),
             texcoord_indices: Vec::new(),
             material_id: None,
@@ -601,6 +615,7 @@ pub enum LoadError {
     FaceVertexOutOfBounds,
     FaceTexCoordOutOfBounds,
     FaceNormalOutOfBounds,
+    FaceColorOutOfBounds,
     InvalidLoadOptionConfig,
     GenericFailure,
 }
@@ -620,6 +635,7 @@ impl fmt::Display for LoadError {
             LoadError::FaceVertexOutOfBounds => "face vertex index out of bounds",
             LoadError::FaceTexCoordOutOfBounds => "face texcoord index out of bounds",
             LoadError::FaceNormalOutOfBounds => "face normal index out of bounds",
+            LoadError::FaceColorOutOfBounds => "face vertex color index out of bounds",
             LoadError::InvalidLoadOptionConfig => "mutually exclusive load options",
             LoadError::GenericFailure => "generic failure",
         };
@@ -711,12 +727,9 @@ enum Face {
 
 /// Parse the float information from the words. Words is an iterator over the
 /// float strings. Returns `false` if parsing failed.
-fn parse_floatn(val_str: SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
     let sz = vals.len();
-    for p in val_str {
-        if sz + n == vals.len() {
-            return true;
-        }
+    for p in val_str.take(n) {
         match FromStr::from_str(p) {
             Ok(x) => vals.push(x),
             Err(_) => return false,
@@ -776,6 +789,7 @@ fn add_vertex(
     index_map: &mut HashMap<VertexIndices, u32>,
     vert: &VertexIndices,
     pos: &[f32],
+    v_color: &[f32],
     texcoord: &[f32],
     normal: &[f32],
 ) -> Result<(), LoadError> {
@@ -807,6 +821,14 @@ fn add_vertex(
                 mesh.normals.push(normal[vn * 3 + 1]);
                 mesh.normals.push(normal[vn * 3 + 2]);
             }
+            if !v_color.is_empty() {
+                if v * 3 + 2 >= v_color.len() {
+                    return Err(LoadError::FaceColorOutOfBounds);
+                }
+                mesh.vertex_color.push(v_color[v * 3]);
+                mesh.vertex_color.push(v_color[v * 3 + 1]);
+                mesh.vertex_color.push(v_color[v * 3 + 2]);
+            }
             let next = index_map.len() as u32;
             mesh.indices.push(next);
             index_map.insert(*vert, next);
@@ -819,6 +841,7 @@ fn add_vertex(
 /// to tris.
 fn export_faces(
     pos: &[f32],
+    v_color: &[f32],
     texcoord: &[f32],
     normal: &[f32],
     faces: &[Face],
@@ -838,10 +861,10 @@ fn export_faces(
         match *f {
             Face::Point(ref a) => {
                 if !load_options.ignore_points {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
                     if load_options.triangulate {
-                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
                     } else {
                         is_all_triangles = false;
                         mesh.face_arities.push(1);
@@ -850,10 +873,10 @@ fn export_faces(
             }
             Face::Line(ref a, ref b) => {
                 if !load_options.ignore_lines {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
                     if load_options.triangulate {
-                        add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
                     } else {
                         is_all_triangles = false;
                         mesh.face_arities.push(2);
@@ -861,24 +884,24 @@ fn export_faces(
                 }
             }
             Face::Triangle(ref a, ref b, ref c) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, v_color, texcoord, normal)?;
                 if !load_options.triangulate {
                     mesh.face_arities.push(3);
                 }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
-                add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
+                add_vertex(&mut mesh, &mut index_map, c, pos, v_color, texcoord, normal)?;
 
                 if load_options.triangulate {
-                    add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
-                    add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, c, pos, v_color, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, d, pos, v_color, texcoord, normal)?;
                 } else {
-                    add_vertex(&mut mesh, &mut index_map, d, pos, texcoord, normal)?;
+                    add_vertex(&mut mesh, &mut index_map, d, pos, v_color, texcoord, normal)?;
                     is_all_triangles = false;
                     mesh.face_arities.push(4);
                 }
@@ -888,14 +911,14 @@ fn export_faces(
                     let a = &indices[0];
                     let mut b = &indices[1];
                     for c in indices.iter().skip(2) {
-                        add_vertex(&mut mesh, &mut index_map, a, pos, texcoord, normal)?;
-                        add_vertex(&mut mesh, &mut index_map, b, pos, texcoord, normal)?;
-                        add_vertex(&mut mesh, &mut index_map, c, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, c, pos, v_color, texcoord, normal)?;
                         b = c;
                     }
                 } else {
                     for i in indices.iter() {
-                        add_vertex(&mut mesh, &mut index_map, i, pos, texcoord, normal)?;
+                        add_vertex(&mut mesh, &mut index_map, i, pos, v_color, texcoord, normal)?;
                     }
                     is_all_triangles = false;
                     mesh.face_arities.push(indices.len() as u32);
@@ -924,6 +947,7 @@ fn add_vertex_multi_index(
     texcoord_index_map: &mut HashMap<usize, u32>,
     vert: &VertexIndices,
     pos: &[f32],
+    v_color: &[f32],
     texcoord: &[f32],
     normal: &[f32],
 ) -> Result<(), LoadError> {
@@ -944,6 +968,19 @@ fn add_vertex_multi_index(
             let next = index_map.len() as u32;
             mesh.indices.push(next);
             index_map.insert(vertex, next);
+
+            // Also add vertex colors to the mesh if present.
+            if !v_color.is_empty() {
+                let vertex = vert.v as usize;
+
+                if vertex * 3 + 2 >= v_color.len() {
+                    return Err(LoadError::FaceColorOutOfBounds);
+                }
+
+                mesh.vertex_color.push(v_color[vertex * 3]);
+                mesh.vertex_color.push(v_color[vertex * 3 + 1]);
+                mesh.vertex_color.push(v_color[vertex * 3 + 2]);
+            }
         }
     }
 
@@ -1036,6 +1073,7 @@ fn add_vertex_multi_index(
 /// to tris.
 fn export_faces_multi_index(
     pos: &[f32],
+    v_color: &[f32],
     texcoord: &[f32],
     normal: &[f32],
     faces: &[Face],
@@ -1066,6 +1104,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         a,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1077,6 +1116,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             a,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1087,6 +1127,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             a,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1105,6 +1146,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         a,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1115,6 +1157,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         b,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1126,6 +1169,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             b,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1143,6 +1187,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     a,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1153,6 +1198,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     b,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1163,6 +1209,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     c,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1178,6 +1225,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     a,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1188,6 +1236,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     b,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1198,6 +1247,7 @@ fn export_faces_multi_index(
                     &mut texcoord_index_map,
                     c,
                     pos,
+                    v_color,
                     texcoord,
                     normal,
                 )?;
@@ -1210,6 +1260,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         a,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1220,6 +1271,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         c,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1230,6 +1282,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         d,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1241,6 +1294,7 @@ fn export_faces_multi_index(
                         &mut texcoord_index_map,
                         d,
                         pos,
+                        v_color,
                         texcoord,
                         normal,
                     )?;
@@ -1260,6 +1314,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             a,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1270,6 +1325,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             b,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1280,6 +1336,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             c,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1294,6 +1351,7 @@ fn export_faces_multi_index(
                             &mut texcoord_index_map,
                             i,
                             pos,
+                            v_color,
                             texcoord,
                             normal,
                         )?;
@@ -1312,6 +1370,10 @@ fn export_faces_multi_index(
 
     #[cfg(feature = "merging")]
     if load_options.merge_identical_points {
+        if !mesh.vertex_color.is_empty() {
+            mesh.vertex_color_indices = mesh.indices.clone();
+            merge_identical_points::<3>(&mut mesh.vertex_color, &mut mesh.vertex_color_indices);
+        }
         merge_identical_points::<3>(&mut mesh.positions, &mut mesh.indices);
         merge_identical_points::<3>(&mut mesh.normals, &mut mesh.normal_indices);
         merge_identical_points::<2>(&mut mesh.texcoords, &mut mesh.texcoord_indices);
@@ -1567,6 +1629,7 @@ where
     let mut mat_map = HashMap::new();
 
     let mut tmp_pos = Vec::new();
+    let mut tmp_v_color = Vec::new();
     let mut tmp_texcoord = Vec::new();
     let mut tmp_normal = Vec::new();
     let mut tmp_faces: Vec<Face> = Vec::new();
@@ -1588,17 +1651,20 @@ where
         match words.next() {
             Some("#") | None => continue,
             Some("v") => {
-                if !parse_floatn(words, &mut tmp_pos, 3) {
+                if !parse_floatn(&mut words, &mut tmp_pos, 3) {
                     return Err(LoadError::PositionParseError);
                 }
+
+                // Add inline vertex colors if present.
+                parse_floatn(&mut words, &mut tmp_v_color, 3);
             }
             Some("vt") => {
-                if !parse_floatn(words, &mut tmp_texcoord, 2) {
+                if !parse_floatn(&mut words, &mut tmp_texcoord, 2) {
                     return Err(LoadError::TexcoordParseError);
                 }
             }
             Some("vn") => {
-                if !parse_floatn(words, &mut tmp_normal, 3) {
+                if !parse_floatn(&mut words, &mut tmp_normal, 3) {
                     return Err(LoadError::NormalParseError);
                 }
             }
@@ -1623,6 +1689,7 @@ where
                         if load_options.single_index {
                             export_faces(
                                 &tmp_pos,
+                                &tmp_v_color,
                                 &tmp_texcoord,
                                 &tmp_normal,
                                 &tmp_faces,
@@ -1632,6 +1699,7 @@ where
                         } else {
                             export_faces_multi_index(
                                 &tmp_pos,
+                                &tmp_v_color,
                                 &tmp_texcoord,
                                 &tmp_normal,
                                 &tmp_faces,
@@ -1681,6 +1749,7 @@ where
                             if load_options.single_index {
                                 export_faces(
                                     &tmp_pos,
+                                    &tmp_v_color,
                                     &tmp_texcoord,
                                     &tmp_normal,
                                     &tmp_faces,
@@ -1690,6 +1759,7 @@ where
                             } else {
                                 export_faces_multi_index(
                                     &tmp_pos,
+                                    &tmp_v_color,
                                     &tmp_texcoord,
                                     &tmp_normal,
                                     &tmp_faces,
@@ -1722,6 +1792,7 @@ where
         if load_options.single_index {
             export_faces(
                 &tmp_pos,
+                &tmp_v_color,
                 &tmp_texcoord,
                 &tmp_normal,
                 &tmp_faces,
@@ -1731,6 +1802,7 @@ where
         } else {
             export_faces_multi_index(
                 &tmp_pos,
+                &tmp_v_color,
                 &tmp_texcoord,
                 &tmp_normal,
                 &tmp_faces,

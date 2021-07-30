@@ -38,6 +38,94 @@ fn simple_triangle() {
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 2];
     assert_eq!(mesh.indices, expect_idx);
+
+    // Verify that there are no vertex colors
+    assert!(mesh.vertex_color.is_empty());
+}
+
+#[test]
+fn simple_triangle_colored() {
+    let m = tobj::load_obj(
+        "obj/triangle_colored.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
+    // We expect a single model with no materials
+    assert_eq!(models.len(), 1);
+    assert!(mats.is_empty());
+    // Confirm our triangle is loaded correctly
+    assert_eq!(models[0].name, "Triangle");
+    let mesh = &models[0].mesh;
+    assert!(mesh.normals.is_empty());
+    assert!(mesh.texcoords.is_empty());
+    assert_eq!(mesh.material_id, None);
+
+    // Verify each position is loaded properly
+    let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+    assert_eq!(mesh.positions, expect_pos);
+    // Verify the indices are loaded properly
+    let expect_idx = vec![0, 1, 2];
+    assert_eq!(mesh.indices, expect_idx);
+
+    // Verify vertex colors are loaded
+    let expect_vertex_color = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    assert_eq!(mesh.vertex_color, expect_vertex_color);
+}
+
+#[test]
+#[cfg(feature = "merging")]
+fn simple_quad_colored_merge() {
+    let m = tobj::load_obj(
+        "obj/quad_colored_merge.obj",
+        &tobj::LoadOptions {
+            merge_identical_points: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
+    // We expect a single model with no materials
+    assert_eq!(models.len(), 1);
+    assert!(mats.is_empty());
+    // Confirm our quad is loaded correctly
+    assert_eq!(models[0].name, "Quad");
+    let mesh = &models[0].mesh;
+    assert_eq!(mesh.normals.len(), 3);
+    assert!(mesh.texcoords.is_empty());
+    assert_eq!(mesh.material_id, None);
+
+    // Verify each position is loaded properly and merged, with the exception of
+    // the 2nd and 4th vertices which have different vertex colors.
+    #[rustfmt::skip]
+    let expect_pos = vec![
+        0.0, 0.0, 0.0,
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        1.0, 1.0, 0.0,
+    ];
+    assert_eq!(mesh.positions, expect_pos);
+    // Verify the indices are loaded properly
+    let expect_idx = vec![0, 1, 2, 1, 2, 3];
+    assert_eq!(mesh.indices, expect_idx);
+
+    // Verify vertex colors are loaded and correctly indexed.
+    #[rustfmt::skip]
+    let expect_vertex_color = vec![
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0,
+        1.0, 1.0, 1.0,
+    ];
+    assert_eq!(mesh.vertex_color, expect_vertex_color);
+    let expect_vertex_color_index = vec![0, 1, 2, 3, 2, 4];
+    assert_eq!(mesh.vertex_color_indices, expect_vertex_color_index);
 }
 
 #[test]
