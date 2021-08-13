@@ -1957,7 +1957,7 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 }
 
 #[cfg(feature = "async")]
-pub async fn load_tobj_buf_async<B, ML>(
+pub async fn load_obj_buf_async<B, ML>(
     reader: &mut B,
     load_options: &LoadOptions,
     material_loader: ML,
