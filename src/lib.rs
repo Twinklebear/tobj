@@ -209,6 +209,9 @@ use std::{
     str::{FromStr, SplitWhitespace},
 };
 
+#[cfg(feature = "async")]
+use std::{future::Future, pin::Pin};
+
 #[cfg(feature = "merging")]
 use std::mem::size_of;
 
@@ -1951,4 +1954,214 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
     }
 
     Ok((materials, mat_map))
+}
+
+#[cfg(feature = "async")]
+pub async fn load_tobj_buf_async<B, ML>(
+    reader: &mut B,
+    load_options: &LoadOptions,
+    material_loader: ML,
+) -> LoadResult
+where
+    B: BufRead,
+    ML: Fn(&Path) -> Pin<Box<dyn Future<Output = MTLLoadResult>>>,
+{
+    if !load_options.is_valid() {
+        return Err(LoadError::InvalidLoadOptionConfig);
+    }
+
+    let mut models = Vec::new();
+    let mut materials = Vec::new();
+    let mut mat_map = HashMap::new();
+
+    let mut tmp_pos = Vec::new();
+    let mut tmp_v_color = Vec::new();
+    let mut tmp_texcoord = Vec::new();
+    let mut tmp_normal = Vec::new();
+    let mut tmp_faces: Vec<Face> = Vec::new();
+    // name of the current object being parsed
+    let mut name = "unnamed_object".to_owned();
+    // material used by the current object being parsed
+    let mut mat_id = None;
+    let mut mtlresult = Ok(Vec::new());
+
+    for line in reader.lines() {
+        let (line, mut words) = match line {
+            Ok(ref line) => (&line[..], line[..].split_whitespace()),
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_obj - failed to read line due to {}", _e);
+                return Err(LoadError::ReadError);
+            }
+        };
+        match words.next() {
+            Some("#") | None => continue,
+            Some("v") => {
+                if !parse_floatn(&mut words, &mut tmp_pos, 3) {
+                    return Err(LoadError::PositionParseError);
+                }
+
+                // Add inline vertex colors if present.
+                parse_floatn(&mut words, &mut tmp_v_color, 3);
+            }
+            Some("vt") => {
+                if !parse_floatn(&mut words, &mut tmp_texcoord, 2) {
+                    return Err(LoadError::TexcoordParseError);
+                }
+            }
+            Some("vn") => {
+                if !parse_floatn(&mut words, &mut tmp_normal, 3) {
+                    return Err(LoadError::NormalParseError);
+                }
+            }
+            Some("f") | Some("l") => {
+                if !parse_face(
+                    words,
+                    &mut tmp_faces,
+                    tmp_pos.len() / 3,
+                    tmp_texcoord.len() / 2,
+                    tmp_normal.len() / 3,
+                ) {
+                    return Err(LoadError::FaceParseError);
+                }
+            }
+            // Just treating object and group tags identically. Should there be different behavior
+            // for them?
+            Some("o") | Some("g") => {
+                // If we were already parsing an object then a new object name
+                // signals the end of the current one, so push it onto our list of objects
+                if !tmp_faces.is_empty() {
+                    models.push(Model::new(
+                        if load_options.single_index {
+                            export_faces(
+                                &tmp_pos,
+                                &tmp_v_color,
+                                &tmp_texcoord,
+                                &tmp_normal,
+                                &tmp_faces,
+                                mat_id,
+                                load_options,
+                            )?
+                        } else {
+                            export_faces_multi_index(
+                                &tmp_pos,
+                                &tmp_v_color,
+                                &tmp_texcoord,
+                                &tmp_normal,
+                                &tmp_faces,
+                                mat_id,
+                                load_options,
+                            )?
+                        },
+                        name,
+                    ));
+                    tmp_faces.clear();
+                }
+                name = line[1..].trim().to_owned();
+                if name.is_empty() {
+                    name = "unnamed_object".to_owned();
+                }
+            }
+            Some("mtllib") => {
+                if let Some(mtllib) = words.next() {
+                    let mat_file = Path::new(mtllib).to_path_buf();
+                    match material_loader(mat_file.as_path()).await {
+                        Ok((mut mats, map)) => {
+                            // Merge the loaded material lib with any currently loaded ones,
+                            // offsetting the indices of the appended
+                            // materials by our current length
+                            let mat_offset = materials.len();
+                            materials.append(&mut mats);
+                            for m in map {
+                                mat_map.insert(m.0, m.1 + mat_offset);
+                            }
+                        }
+                        Err(e) => {
+                            mtlresult = Err(e);
+                        }
+                    }
+                } else {
+                    return Err(LoadError::MaterialParseError);
+                }
+            }
+            Some("usemtl") => {
+                let mat_name = line[7..].trim().to_owned();
+                if !mat_name.is_empty() {
+                    let new_mat = mat_map.get(&mat_name).cloned();
+                    // As materials are returned per-model, a new material within an object
+                    // has to emit a new model with the same name but different material
+                    if mat_id != new_mat && !tmp_faces.is_empty() {
+                        models.push(Model::new(
+                            if load_options.single_index {
+                                export_faces(
+                                    &tmp_pos,
+                                    &tmp_v_color,
+                                    &tmp_texcoord,
+                                    &tmp_normal,
+                                    &tmp_faces,
+                                    mat_id,
+                                    load_options,
+                                )?
+                            } else {
+                                export_faces_multi_index(
+                                    &tmp_pos,
+                                    &tmp_v_color,
+                                    &tmp_texcoord,
+                                    &tmp_normal,
+                                    &tmp_faces,
+                                    mat_id,
+                                    load_options,
+                                )?
+                            },
+                            name.clone(),
+                        ));
+                        tmp_faces.clear();
+                    }
+                    if new_mat.is_none() {
+                        #[cfg(feature = "log")]
+                        log::warn!("Object {} refers to unfound material: {}", name, mat_name);
+                    }
+                    mat_id = new_mat;
+                } else {
+                    return Err(LoadError::MaterialParseError);
+                }
+            }
+            // Just ignore unrecognized characters
+            Some(_) => {}
+        }
+    }
+
+    // For the last object in the file we won't encounter another object name to
+    // tell us when it's done, so if we're parsing an object push the last one
+    // on the list as well
+    models.push(Model::new(
+        if load_options.single_index {
+            export_faces(
+                &tmp_pos,
+                &tmp_v_color,
+                &tmp_texcoord,
+                &tmp_normal,
+                &tmp_faces,
+                mat_id,
+                load_options,
+            )?
+        } else {
+            export_faces_multi_index(
+                &tmp_pos,
+                &tmp_v_color,
+                &tmp_texcoord,
+                &tmp_normal,
+                &tmp_faces,
+                mat_id,
+                load_options,
+            )?
+        },
+        name,
+    ));
+
+    if !materials.is_empty() {
+        mtlresult = Ok(materials);
+    }
+
+    Ok((models, mtlresult))
 }
