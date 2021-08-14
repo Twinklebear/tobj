@@ -210,7 +210,7 @@ use std::{
 };
 
 #[cfg(feature = "async")]
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 #[cfg(feature = "merging")]
 use std::mem::size_of;
@@ -1964,7 +1964,7 @@ pub async fn load_obj_buf_async<B, ML, MLFut>(
 ) -> LoadResult
 where
     B: BufRead,
-    ML: Fn(&Path) -> MLFut,
+    ML: Fn(Arc<&Path>) -> MLFut,
     MLFut: Future<Output = MTLLoadResult>,
 {
     if !load_options.is_valid() {
@@ -2065,7 +2065,7 @@ where
             }
             Some("mtllib") => {
                 if let Some(mtllib) = words.next() {
-                    let mat_file = Path::new(mtllib.clone());
+                    let mat_file = Arc::new(Path::new(mtllib));
                     match material_loader(mat_file).await {
                         Ok((mut mats, map)) => {
                             // Merge the loaded material lib with any currently loaded ones,
