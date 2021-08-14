@@ -1964,7 +1964,7 @@ pub async fn load_obj_buf_async<B, ML>(
 ) -> LoadResult
 where
     B: BufRead,
-    ML: Fn(String) -> Pin<Box<dyn Future<Output = MTLLoadResult>>>,
+    ML: Fn(&Path) -> Pin<Box<dyn Future<Output = MTLLoadResult>>>,
 {
     if !load_options.is_valid() {
         return Err(LoadError::InvalidLoadOptionConfig);
