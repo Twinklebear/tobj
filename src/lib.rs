@@ -210,7 +210,7 @@ use std::{
 };
 
 #[cfg(feature = "async")]
-use std::{future::Future, pin::Pin};
+use std::future::Future;
 
 #[cfg(feature = "merging")]
 use std::mem::size_of;
@@ -1957,14 +1957,15 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 }
 
 #[cfg(feature = "async")]
-pub async fn load_obj_buf_async<B, ML>(
+pub async fn load_obj_buf_async<B, ML, MLFut>(
     reader: &mut B,
     load_options: &LoadOptions,
     material_loader: ML,
 ) -> LoadResult
 where
     B: BufRead,
-    ML: Fn(&Path) -> Pin<Box<dyn Future<Output = MTLLoadResult>>>,
+    ML: Fn(&Path) -> MLFut,
+    MLFut: Future<Output = MTLLoadResult>,
 {
     if !load_options.is_valid() {
         return Err(LoadError::InvalidLoadOptionConfig);
@@ -2064,12 +2065,8 @@ where
             }
             Some("mtllib") => {
                 if let Some(mtllib) = words.next() {
-                    let mat_file = Path::new(mtllib).to_path_buf();
-                    match material_loader(
-                        String::from_str(mat_file.as_path().to_str().expect("")).expect(""),
-                    )
-                    .await
-                    {
+                    let mat_file = Path::new(mtllib.clone());
+                    match material_loader(mat_file).await {
                         Ok((mut mats, map)) => {
                             // Merge the loaded material lib with any currently loaded ones,
                             // offsetting the indices of the appended
