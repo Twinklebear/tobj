@@ -1964,8 +1964,8 @@ pub async fn load_obj_buf_async<B, ML, MLFut>(
 ) -> LoadResult
 where
     B: BufRead,
-    ML: Fn(Arc<&Path>) -> MLFut,
-    MLFut: Future<Output = MTLLoadResult> + Send + Sync,
+    ML: Fn(String) -> MLFut,
+    MLFut: Future<Output = MTLLoadResult>,
 {
     if !load_options.is_valid() {
         return Err(LoadError::InvalidLoadOptionConfig);
@@ -2065,7 +2065,7 @@ where
             }
             Some("mtllib") => {
                 if let Some(mtllib) = words.next() {
-                    let mat_file = Arc::new(Path::new(mtllib));
+                    let mat_file = String::from(mtllib);
                     match material_loader(mat_file).await {
                         Ok((mut mats, map)) => {
                             // Merge the loaded material lib with any currently loaded ones,
