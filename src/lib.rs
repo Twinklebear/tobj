@@ -1957,6 +1957,72 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 }
 
 #[cfg(feature = "async")]
+/// Load the various meshes in an `OBJ` buffer.
+///
+/// This could e.g. be a text file already in memory, a file loaded
+///  asynchronously over the network etc.
+///
+/// # Arguments
+///
+/// You must pass a `material_loader` function, which will return a future
+/// that loads a material given a name.
+///
+/// A trivial material loader may just look at the file name and then call
+/// `load_mtl_buf` with the in-memory MTL file source.
+///
+/// Alternatively it could pass an `MTL` file in memory to `load_mtl_buf` to
+/// parse materials from some buffer.
+///
+/// * `load_options` – Governs on-the-fly processing of the mesh during loading.
+///   See [`LoadOptions`] for more information.
+///
+/// # Example
+/// The test for `load_obj_buf` includes the OBJ and MTL files as strings
+/// and uses a `Cursor` to provide a `BufRead` interface on the buffer.
+///
+/// ```
+///async {
+///    
+///    use std::{env, fs::File, io::BufReader};
+///
+///    let dir = env::current_dir().unwrap();
+///    let mut cornell_box_obj = dir.clone();
+///    cornell_box_obj.push("obj/cornell_box.obj");
+///    let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
+///
+///    let m = tobj::load_obj_buf_async(
+///        &mut cornell_box_file,
+///        &tobj::LoadOptions {
+///            triangulate: true,
+///            single_index: true,
+///            ..Default::default()
+///        },
+///        move |p| {
+///            let dir_clone = dir.clone();
+///            async move {
+///                let mut cornell_box_mtl1 = dir_clone.clone();
+///                cornell_box_mtl1.push("obj/cornell_box.mtl");
+///
+///                let mut cornell_box_mtl2 = dir_clone.clone();
+///                cornell_box_mtl2.push("obj/cornell_box2.mtl");
+///
+///                match p.as_str() {
+///                    "cornell_box.mtl" => {
+///                        let f = File::open(cornell_box_mtl1.as_path()).unwrap();
+///                        tobj::load_mtl_buf(&mut BufReader::new(f))
+///                    }
+///                    "cornell_box2.mtl" => {
+///                        let f = File::open(cornell_box_mtl2.as_path()).unwrap();
+///                        tobj::load_mtl_buf(&mut BufReader::new(f))
+///                    }
+///                    _ => unreachable!(),
+///                }
+///            }
+///        },
+///    )
+///    .await;
+///};
+/// ```
 pub async fn load_obj_buf_async<B, ML, MLFut>(
     reader: &mut B,
     load_options: &LoadOptions,
