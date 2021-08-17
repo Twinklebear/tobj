@@ -210,7 +210,7 @@ use std::{
 };
 
 #[cfg(feature = "async")]
-use std::{future::Future, sync::Arc};
+use std::future::Future;
 
 #[cfg(feature = "merging")]
 use std::mem::size_of;
