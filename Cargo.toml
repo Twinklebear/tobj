@@ -28,6 +28,9 @@ async = []
 ahash = { version = "0.7.2", optional = true }
 log = { version = "0.4.14", optional = true }
 
+[dev-dependencies]
+tokio-test = "0.4.2"
+
 [profile.dev]
 split-debuginfo = "unpacked"
 opt-level = 3
