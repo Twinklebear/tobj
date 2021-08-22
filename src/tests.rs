@@ -488,6 +488,32 @@ fn test_custom_material_loader() {
     validate_cornell(models, mats);
 }
 
+#[cfg(feature = "async")]
+#[test]
+fn test_async_custom_material_loader() {
+    let m = tokio_test::block_on(tobj::load_obj_buf_async(
+        &mut Cursor::new(CORNELL_BOX_OBJ),
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+        |p| async move {
+            match p.as_str() {
+                "cornell_box.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL1)),
+                "cornell_box2.mtl" => tobj::load_mtl_buf(&mut Cursor::new(CORNELL_BOX_MTL2)),
+                _ => unreachable!(),
+            }
+        },
+    ));
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
+    assert_eq!(models.len(), 8);
+    assert_eq!(mats.len(), 5);
+    validate_cornell(models, mats);
+}
+
 #[test]
 fn test_custom_material_loader_files() {
     let dir = env::current_dir().unwrap();
