@@ -76,7 +76,7 @@ parameter and its value.
    indices.
 
 * `async` – Adds support for async loading of obj files from a buffer, with an
-   async material loader. Useful in environments thaat do not support blocking
+   async material loader. Useful in environments that do not support blocking
    IO (e.g. WebAssembly).
 
 ## Documentation
