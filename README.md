@@ -75,6 +75,10 @@ parameter and its value.
 * `reordering` – Adds support for reordering the normal- and texture coordinate
    indices.
 
+* `async` – Adds support for async loading of obj files from a buffer, with an
+   async material loader. Useful in environments that do not support blocking
+   IO (e.g. WebAssembly).
+
 ## Documentation
 
 Rust docs can be found [here](https://docs.rs/tobj/).

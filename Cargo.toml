@@ -36,4 +36,4 @@ split-debuginfo = "unpacked"
 opt-level = 3
 
 [package.metadata.docs.rs]
- features = ["log", "merging", "reordering"]
+ features = ["log", "merging", "reordering", "async"]
