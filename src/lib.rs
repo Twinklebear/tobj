@@ -1742,7 +1742,12 @@ where
                 }
             }
             Some("usemtl") => {
-                let mat_name = line[7..].trim().to_owned();
+                let mat_name = line.split_once(" ")
+                    .unwrap_or_default()
+                    .1
+                    .trim()
+                    .to_owned();
+
                 if !mat_name.is_empty() {
                     let new_mat = mat_map.get(&mat_name).cloned();
                     // As materials are returned per-model, a new material within an object
@@ -1982,7 +1987,7 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///
 /// ```
 ///async {
-///    
+///
 ///    use std::{env, fs::File, io::BufReader};
 ///
 ///    let dir = env::current_dir().unwrap();
