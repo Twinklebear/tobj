@@ -1464,7 +1464,7 @@ fn reorder_data(mesh: &mut Mesh) {
 #[inline]
 fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut Vec<u32>)
 where
-    [(); size_of::<[f32; N]>()]: ,
+    [(); size_of::<[f32; N]>()]:,
 {
     if indices.is_empty() {
         return;
@@ -1742,7 +1742,8 @@ where
                 }
             }
             Some("usemtl") => {
-                let mat_name = line[7..].trim().to_owned();
+                let mat_name = line.split_once(" ").unwrap_or_default().1.trim().to_owned();
+
                 if !mat_name.is_empty() {
                     let new_mat = mat_map.get(&mat_name).cloned();
                     // As materials are returned per-model, a new material within an object
@@ -1981,47 +1982,46 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 /// and uses a `Cursor` to provide a `BufRead` interface on the buffer.
 ///
 /// ```
-///async {
-///    
-///    use std::{env, fs::File, io::BufReader};
+/// async {
+///     use std::{env, fs::File, io::BufReader};
 ///
-///    let dir = env::current_dir().unwrap();
-///    let mut cornell_box_obj = dir.clone();
-///    cornell_box_obj.push("obj/cornell_box.obj");
-///    let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
+///     let dir = env::current_dir().unwrap();
+///     let mut cornell_box_obj = dir.clone();
+///     cornell_box_obj.push("obj/cornell_box.obj");
+///     let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 ///
-///    let m = tobj::load_obj_buf_async(
-///        &mut cornell_box_file,
-///        &tobj::LoadOptions {
-///            triangulate: true,
-///            single_index: true,
-///            ..Default::default()
-///        },
-///        move |p| {
-///            let dir_clone = dir.clone();
-///            async move {
-///                let mut cornell_box_mtl1 = dir_clone.clone();
-///                cornell_box_mtl1.push("obj/cornell_box.mtl");
+///     let m = tobj::load_obj_buf_async(
+///         &mut cornell_box_file,
+///         &tobj::LoadOptions {
+///             triangulate: true,
+///             single_index: true,
+///             ..Default::default()
+///         },
+///         move |p| {
+///             let dir_clone = dir.clone();
+///             async move {
+///                 let mut cornell_box_mtl1 = dir_clone.clone();
+///                 cornell_box_mtl1.push("obj/cornell_box.mtl");
 ///
-///                let mut cornell_box_mtl2 = dir_clone.clone();
-///                cornell_box_mtl2.push("obj/cornell_box2.mtl");
+///                 let mut cornell_box_mtl2 = dir_clone.clone();
+///                 cornell_box_mtl2.push("obj/cornell_box2.mtl");
 ///
-///                match p.as_str() {
-///                    "cornell_box.mtl" => {
-///                        let f = File::open(cornell_box_mtl1.as_path()).unwrap();
-///                        tobj::load_mtl_buf(&mut BufReader::new(f))
-///                    }
-///                    "cornell_box2.mtl" => {
-///                        let f = File::open(cornell_box_mtl2.as_path()).unwrap();
-///                        tobj::load_mtl_buf(&mut BufReader::new(f))
-///                    }
-///                    _ => unreachable!(),
-///                }
-///            }
-///        },
-///    )
-///    .await;
-///};
+///                 match p.as_str() {
+///                     "cornell_box.mtl" => {
+///                         let f = File::open(cornell_box_mtl1.as_path()).unwrap();
+///                         tobj::load_mtl_buf(&mut BufReader::new(f))
+///                     }
+///                     "cornell_box2.mtl" => {
+///                         let f = File::open(cornell_box_mtl2.as_path()).unwrap();
+///                         tobj::load_mtl_buf(&mut BufReader::new(f))
+///                     }
+///                     _ => unreachable!(),
+///                 }
+///             }
+///         },
+///     )
+///     .await;
+/// };
 /// ```
 pub async fn load_obj_buf_async<B, ML, MLFut>(
     reader: &mut B,
