@@ -194,8 +194,7 @@
 //! * [`reordering`](LoadOptions::reorder_data) – Adds support for reordering
 //!   the normal- and texture coordinate indices.
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
-#![cfg_attr(feature = "merging", feature(const_generics))]
-#![cfg_attr(feature = "merging", feature(const_evaluatable_checked))]
+#![cfg_attr(feature = "merging", feature(generic_const_exprs))]
 
 #[cfg(test)]
 mod tests;
@@ -1400,7 +1399,7 @@ fn reorder_data(mesh: &mut Mesh) {
             .iter()
             .flat_map(|&index| {
                 let index = index as usize * 2;
-                std::array::IntoIter::new([mesh.texcoords[index], mesh.texcoords[index + 1]])
+                IntoIterator::into_iter([mesh.texcoords[index], mesh.texcoords[index + 1]])
             })
             .collect::<Vec<_>>();
     } else {
@@ -1430,7 +1429,7 @@ fn reorder_data(mesh: &mut Mesh) {
             .iter()
             .flat_map(|&index| {
                 let index = index as usize * 2;
-                std::array::IntoIter::new([
+                IntoIterator::into_iter([
                     mesh.normals[index],
                     mesh.normals[index + 1],
                     mesh.normals[index + 2],
@@ -1492,7 +1491,7 @@ where
                     canonical_indices.insert(*bitpattern, index);
                     compressed_indicess.push(index);
                     index += 1;
-                    Some(std::array::IntoIter::new(*position))
+                    Some(IntoIterator::into_iter(*position))
                 }
             }
         })
