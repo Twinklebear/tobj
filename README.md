@@ -17,13 +17,13 @@ Arbitrary polygons may not behave as expected. The best solution would be to
 convert your mesh to solely consist of triangles in your modeling
 software.
 
-## Optional – Normals & Texture Coordinates
+## Optional – Normals, Texture Coordinates and Vertex Colors
 
-It is assumed that all meshes will at least have positions, but normals and
-texture coordinates are optional.
+It is assumed that all meshes will at least have positions, but normals, texture
+coordinates and vertex colors are optional.
 
-If no normals or texture coordinates are found then the corresponding `Vec`s
-for the `Mesh` will be empty.
+If no normals, texture coordinates or vertex colors are found, then the
+corresponding `Vec`s for the `Mesh` will be empty.
 
 ## Flat Data
 
@@ -74,6 +74,10 @@ parameter and its value.
 
 * `reordering` – Adds support for reordering the normal- and texture coordinate
    indices.
+
+* `async` – Adds support for async loading of obj files from a buffer, with an
+   async material loader. Useful in environments that do not support blocking
+   IO (e.g. WebAssembly).
 
 ## Documentation
 
