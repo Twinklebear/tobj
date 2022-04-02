@@ -225,7 +225,9 @@ type HashMap<K, V> = std::collections::HashMap<K, V>;
 /// Faces are *triangulated*, a *single index* is generated and *degenerate
 /// faces* (points & lines) are *discarded*.
 pub const GPU_LOAD_OPTIONS: LoadOptions = LoadOptions {
+    #[cfg(feature = "merging")]
     merge_identical_points: false,
+    #[cfg(feature = "reordering")]
     reorder_data: false,
     single_index: true,
     triangulate: true,
@@ -240,7 +242,9 @@ pub const GPU_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// Topology remains unchanged except for *degenerate faces* (points & lines)
 /// which are *discarded*.
 pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
+    #[cfg(feature = "merging")]
     merge_identical_points: true,
+    #[cfg(feature = "reordering")]
     reorder_data: true,
     single_index: false,
     triangulate: false,
