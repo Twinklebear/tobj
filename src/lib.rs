@@ -65,11 +65,7 @@
 //!
 //! let cornell_box = tobj::load_obj(
 //!     "obj/cornell_box.obj",
-//!     &tobj::LoadOptions {
-//!         single_index: true,
-//!         triangulate: true,
-//!         ..Default::default()
-//!     },
+//!     &tobj::GPU_LOAD_OPTIONS,
 //! );
 //! assert!(cornell_box.is_ok());
 //!
@@ -193,6 +189,10 @@
 //!
 //! * [`reordering`](LoadOptions::reorder_data) – Adds support for reordering
 //!   the normal- and texture coordinate indices.
+//!
+//! * [`async`](load_obj_buf_async) – Adds support for async loading of obj files from a buffer,
+//!   with an async material loader. Useful in environments that do not
+//!   support blocking IO (e.g. WebAssembly).
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
 #![cfg_attr(feature = "merging", feature(generic_const_exprs))]
 
@@ -220,6 +220,38 @@ type HashMap<K, V> = ahash::AHashMap<K, V>;
 #[cfg(not(feature = "ahash"))]
 type HashMap<K, V> = std::collections::HashMap<K, V>;
 
+/// Typical [`LoadOptions`] for using meshes in a GPU/relatime context.
+///
+/// Faces are *triangulated*, a *single index* is generated and *degenerate
+/// faces* (points & lines) are *discarded*.
+pub const GPU_LOAD_OPTIONS: LoadOptions = LoadOptions {
+    #[cfg(feature = "merging")]
+    merge_identical_points: false,
+    #[cfg(feature = "reordering")]
+    reorder_data: false,
+    single_index: true,
+    triangulate: true,
+    ignore_points: true,
+    ignore_lines: true,
+};
+
+/// Typical [`LoadOptions`] for using meshes with an offline rendeder.
+///
+/// Faces are *kept as they are* (e.g. n-gons) and *normal and texture
+/// coordinate data is reordered* so only a single index is needed.
+/// Topology remains unchanged except for *degenerate faces* (points & lines)
+/// which are *discarded*.
+pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
+    #[cfg(feature = "merging")]
+    merge_identical_points: true,
+    #[cfg(feature = "reordering")]
+    reorder_data: true,
+    single_index: false,
+    triangulate: false,
+    ignore_points: true,
+    ignore_lines: true,
+};
+
 /// A mesh made up of triangles loaded from some `OBJ` file.
 ///
 /// It is assumed that all meshes will at least have positions, but normals and
@@ -241,11 +273,7 @@ type HashMap<K, V> = std::collections::HashMap<K, V>;
 /// ```
 /// let cornell_box = tobj::load_obj(
 ///     "obj/cornell_box.obj",
-///     &tobj::LoadOptions {
-///         triangulate: true,
-///         single_index: true,
-///         ..Default::default()
-///     },
+///     &tobj::GPU_LOAD_OPTIONS,
 /// );
 /// assert!(cornell_box.is_ok());
 ///
@@ -299,7 +327,7 @@ pub struct Mesh {
     /// specified this will be empty.
     pub texcoords: Vec<f32>,
     /// Indices for vertices of each face. If loaded with
-    /// [`triangulate`](LoadOptions::triangulate) set to `true`.each face in the
+    /// [`triangulate`](LoadOptions::triangulate) set to `true` each face in the
     /// mesh is a triangle.
     ///
     /// Otherwise [`face_arities`](Mesh::face_arities) indicates how many
@@ -336,7 +364,7 @@ pub struct Mesh {
 }
 
 impl Default for Mesh {
-    /// Create a new, empty mesh
+    /// Create a new, empty mesh.
     fn default() -> Self {
         Self {
             positions: Vec::new(),
@@ -356,6 +384,8 @@ impl Default for Mesh {
 
 /// Options for processing the mesh during loading.
 ///
+/// Passed to [`load_obj()`], [`load_obj_buf()`] and [`load_obj_buf_async()`].
+///
 /// By default, all of these are `false`. With those settings, the data you get
 /// represents the original data in the input file/buffer as closely as
 /// possible.
@@ -366,6 +396,13 @@ impl Default for Mesh {
 ///     single_index: true,
 ///     ..Default::default()
 /// }
+///```
+///
+/// There are convenience `const`s for the most common cases:
+///
+/// * [`GPU_LOAD_OPTIONS`] – if you display meshes on the GPU/in realtime.
+///
+/// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g. an offline path tracer or the like.
 #[derive(Debug, Clone, Copy)]
 pub struct LoadOptions {
     /// Merge identical positions.
@@ -391,7 +428,7 @@ pub struct LoadOptions {
     /// indices.
     ///
     /// * This flag is *mutually exclusive* with
-    ///   [`single_index`](LoadOptions::single_index) and will lead to a
+    ///   [`single_index`](LoadOptions::single_index) and will lead to an
     ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
     ///   if both are set to `true`.
     ///
@@ -429,7 +466,7 @@ pub struct LoadOptions {
     ///   [`InvalidLoadOptionConfig`](LoadError::InvalidLoadOptionConfig) error
     ///   if both it and either of the two other are set to `true`.
     ///
-    /// * Vertices may get duplicated to match the granularity.
+    /// * Vertices may get duplicated to match the granularity
     ///   (*per-vertex-per-face*) of normals and/or texture coordinates.
     ///
     /// * Topolgy may change as a result (faces may become *disconnected* in the
@@ -465,7 +502,7 @@ pub struct LoadOptions {
     /// This is usually what you want if you do *not* intend to make special use
     /// of the line data (e.g. as wires/ropes etc.).
     ///
-    /// Polygon meshes that contains faces with two verticesx only usually do so
+    /// Polygon meshes that contains faces with two vertices only usually do so
     /// because of bad topology.
     pub ignore_lines: bool,
 }
@@ -551,14 +588,14 @@ pub struct Material {
     /// Material shininess attribute. Also called `glossiness`.
     pub shininess: f32,
     /// Dissolve attribute is the alpha term for the material. Referred to as
-    /// dissolve since that's what the `MTL` file format docs refer to it as
+    /// dissolve since that's what the `MTL` file format docs refer to it as.
     pub dissolve: f32,
     /// Optical density also known as index of refraction. Called
     /// `optical_density` in the `MTL` specc. Takes on a value between 0.001
     /// and 10.0. 1.0 means light does not bend as it passes through
     /// the object.
     pub optical_density: f32,
-    /// Name of the ambient texture file for the material
+    /// Name of the ambient texture file for the material.
     pub ambient_texture: String,
     /// Name of the diffuse texture file for the material.
     pub diffuse_texture: String,
@@ -576,7 +613,7 @@ pub struct Material {
     /// illumnination models are specified in the [`MTL` spec](http://paulbourke.net/dataformats/mtl/).
     pub illumination_model: Option<u8>,
     /// Key value pairs of any unrecognized parameters encountered while parsing
-    /// the material
+    /// the material.
     pub unknown_param: HashMap<String, String>,
 }
 
@@ -716,8 +753,7 @@ impl VertexIndices {
     }
 }
 
-/// Enum representing either a quad or triangle face, storing indices for the
-/// face vertices.
+/// Enum representing a face, storing indices for the face vertices.
 #[derive(Debug)]
 enum Face {
     Point(VertexIndices),
@@ -772,7 +808,7 @@ fn parse_face(
             None => return false,
         }
     }
-    // Check if we read a triangle or a quad face and push it on
+    // Check what kind face we read and push it on
     match indices.len() {
         1 => faces.push(Face::Point(indices[0])),
         2 => faces.push(Face::Line(indices[0], indices[1])),
@@ -1469,7 +1505,7 @@ where
         return;
     }
 
-    let mut compressed_indicess = Vec::new();
+    let mut compressed_indices = Vec::new();
     let mut canonical_indices = HashMap::<[u8; size_of::<[f32; N]>()], u32>::new();
 
     let mut index = 0;
@@ -1484,12 +1520,12 @@ where
 
             match canonical_indices.get(bitpattern) {
                 Some(&other_index) => {
-                    compressed_indicess.push(other_index);
+                    compressed_indices.push(other_index);
                     None
                 }
                 None => {
                     canonical_indices.insert(*bitpattern, index);
-                    compressed_indicess.push(index);
+                    compressed_indices.push(index);
                     index += 1;
                     Some(IntoIterator::into_iter(*position))
                 }
@@ -1500,7 +1536,7 @@ where
 
     indices
         .iter_mut()
-        .for_each(|vertex| *vertex = compressed_indicess[*vertex as usize]);
+        .for_each(|vertex| *vertex = compressed_indices[*vertex as usize]);
 }
 
 /// Load the various objects specified in the `OBJ` file and any associated
@@ -1991,11 +2027,7 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///
 ///     let m = tobj::load_obj_buf_async(
 ///         &mut cornell_box_file,
-///         &tobj::LoadOptions {
-///             triangulate: true,
-///             single_index: true,
-///             ..Default::default()
-///         },
+///         &tobj::GPU_LOAD_OPTIONS,
 ///         move |p| {
 ///             let dir_clone = dir.clone();
 ///             async move {

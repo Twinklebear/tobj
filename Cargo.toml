@@ -25,8 +25,8 @@ reordering = []
 async = []
 
 [dependencies]
-ahash = { version = "0.7.2", optional = true }
-log = { version = "0.4.14", optional = true }
+ahash = { version = "0.7.6", optional = true }
+log = { version = "0.4.16", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4.2"
@@ -36,4 +36,4 @@ split-debuginfo = "unpacked"
 opt-level = 3
 
 [package.metadata.docs.rs]
- features = ["log", "merging", "reordering", "async"]
+features = ["log", "merging", "reordering", "async"]
