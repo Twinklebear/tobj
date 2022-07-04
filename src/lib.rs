@@ -652,6 +652,7 @@ pub enum LoadError {
     FaceParseError,
     MaterialParseError,
     InvalidObjectName,
+    InvalidPolygon,
     FaceVertexOutOfBounds,
     FaceTexCoordOutOfBounds,
     FaceNormalOutOfBounds,
@@ -672,6 +673,7 @@ impl fmt::Display for LoadError {
             LoadError::FaceParseError => "face parse error",
             LoadError::MaterialParseError => "material parse error",
             LoadError::InvalidObjectName => "invalid object name",
+            LoadError::InvalidPolygon => "invalid polygon",
             LoadError::FaceVertexOutOfBounds => "face vertex index out of bounds",
             LoadError::FaceTexCoordOutOfBounds => "face texcoord index out of bounds",
             LoadError::FaceNormalOutOfBounds => "face normal index out of bounds",
@@ -731,12 +733,12 @@ impl VertexIndices {
                 match isize::from_str(i.1) {
                     Ok(x) => {
                         // Handle relative indices
-                        indices[i.0] = if x < 0 {
+                        *indices.get_mut(i.0)? = if x < 0 {
                             match i.0 {
                                 0 => (pos_sz as isize + x) as _,
                                 1 => (tex_sz as isize + x) as _,
                                 2 => (norm_sz as isize + x) as _,
-                                _ => panic!("Invalid number of elements for a face (> 3)!"),
+                                _ => return None, // Invalid number of elements for a face
                             }
                         } else {
                             (x - 1) as _
@@ -836,7 +838,7 @@ fn add_vertex(
         Some(&i) => mesh.indices.push(i),
         None => {
             let v = vert.v as usize;
-            if v * 3 + 2 >= pos.len() {
+            if v.saturating_mul(3).saturating_add(2) >= pos.len() {
                 return Err(LoadError::FaceVertexOutOfBounds);
             }
             // Add the vertex to the mesh
@@ -947,8 +949,8 @@ fn export_faces(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = &indices[0];
-                    let mut b = &indices[1];
+                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
                         add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
@@ -995,7 +997,7 @@ fn add_vertex_multi_index(
         None => {
             let vertex = vert.v as usize;
 
-            if vertex * 3 + 2 >= pos.len() {
+            if vertex.saturating_mul(3).saturating_add(2) >= pos.len() {
                 return Err(LoadError::FaceVertexOutOfBounds);
             }
 
@@ -1343,8 +1345,8 @@ fn export_faces_multi_index(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = &indices[0];
-                    let mut b = &indices[1];
+                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex_multi_index(
                             &mut mesh,
@@ -1750,7 +1752,8 @@ where
                     ));
                     tmp_faces.clear();
                 }
-                name = line[1..].trim().to_owned();
+                let size = line.chars().nth(0).unwrap().len_utf8();
+                name = line[size..].trim().to_owned();
                 if name.is_empty() {
                     name = "unnamed_object".to_owned();
                 }
