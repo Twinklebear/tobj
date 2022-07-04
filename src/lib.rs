@@ -403,6 +403,7 @@ impl Default for Mesh {
 /// * [`GPU_LOAD_OPTIONS`] – if you display meshes on the GPU/in realtime.
 ///
 /// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g. an offline path tracer or the like.
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Copy)]
 pub struct LoadOptions {
     /// Merge identical positions.

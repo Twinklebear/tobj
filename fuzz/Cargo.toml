@@ -1,0 +1,35 @@
+[package]
+name = "tobj-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+ahash = "*"
+
+[dependencies.tobj]
+path = ".."
+features = ["arbitrary"]
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "load_obj"
+path = "fuzz_targets/load_obj.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "load_mtl"
+path = "fuzz_targets/load_mtl.rs"
+test = false
+doc = false
+
+[profile.release]
+debug = true
