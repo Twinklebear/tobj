@@ -16,6 +16,7 @@ exclude = [
     "*.obj",
     "*.mtl",
     ".travis.yml",
+    "fuzz/*",
 ]
 
 [features]
