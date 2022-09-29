@@ -23,7 +23,7 @@
 //!
 //! ## Flat Data
 //!
-//! Values are stored packed as [`f32`]s in flat `Vec`s.
+//! Values are stored packed as [`T`]s in flat `Vec`s, where T .
 //!
 //! For example, the `positions` member of a `Mesh` will contain `[x, y, z, x,
 //! y, z, ...]` which you can then use however you like.
@@ -63,7 +63,7 @@
 //! ```
 //! use tobj;
 //!
-//! let cornell_box = tobj::load_obj(
+//! let cornell_box = tobj::load_obj::<_, f64>(
 //!     "obj/cornell_box.obj",
 //!     &tobj::GPU_LOAD_OPTIONS,
 //! );
@@ -252,12 +252,25 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
     ignore_lines: true,
 };
 
+/// A simplified trait for parseable values;
+pub trait ParseableV: num::Num + FromStr + Copy + core::fmt::Debug + core::fmt::Display {}
+
+impl ParseableV for f64 {}
+impl ParseableV for f32 {}
+impl ParseableV for i64 {}
+impl ParseableV for u64 {}
+impl ParseableV for i32 {}
+impl ParseableV for u32 {}
+impl ParseableV for i16 {}
+impl ParseableV for u16 {}
+impl ParseableV for i8 {}
+impl ParseableV for u8 {}
 /// A mesh made up of triangles loaded from some `OBJ` file.
 ///
 /// It is assumed that all meshes will at least have positions, but normals and
 /// texture coordinates are optional. If no normals or texture coordinates where
 /// found then the corresponding `Vec`s in the `Mesh` will be empty. Values are
-/// stored packed as [`f32`]s in  flat `Vec`s.
+/// stored packed as [`T`]s in  flat `Vec`s.
 ///
 /// For examples the `positions` member of a loaded mesh will contain `[x, y, z,
 /// x, y, z, ...]` which you can then use however you like. Indices are also
@@ -271,7 +284,7 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// empty.
 ///
 /// ```
-/// let cornell_box = tobj::load_obj(
+/// let cornell_box = tobj::load_obj::<_, f64>(
 ///     "obj/cornell_box.obj",
 ///     &tobj::GPU_LOAD_OPTIONS,
 /// );
@@ -304,10 +317,10 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// }
 /// ```
 #[derive(Debug, Clone)]
-pub struct Mesh {
+pub struct Mesh<T: ParseableV> {
     /// Flattened 3 component floating point vectors, storing positions of
     /// vertices in the mesh.
-    pub positions: Vec<f32>,
+    pub positions: Vec<T>,
     /// Flattened 3 component floating point vectors, storing the color
     /// associated with the vertices in the mesh.
     ///
@@ -319,13 +332,13 @@ pub struct Mesh {
     ///
     /// Not all meshes have normals. If no normals are specified this will
     /// be empty.
-    pub normals: Vec<f32>,
+    pub normals: Vec<T>,
     /// Flattened 2 component floating point vectors, storing texture
     /// coordinates of vertices in the mesh.
     ///
     /// Not all meshes have texture coordinates. If no texture coordinates are
     /// specified this will be empty.
-    pub texcoords: Vec<f32>,
+    pub texcoords: Vec<T>,
     /// Indices for vertices of each face. If loaded with
     /// [`triangulate`](LoadOptions::triangulate) set to `true` each face in the
     /// mesh is a triangle.
@@ -363,7 +376,7 @@ pub struct Mesh {
     pub material_id: Option<usize>,
 }
 
-impl Default for Mesh {
+impl<T: ParseableV> Default for Mesh<T> {
     /// Create a new, empty mesh.
     fn default() -> Self {
         Self {
@@ -403,8 +416,8 @@ impl Default for Mesh {
 /// * [`GPU_LOAD_OPTIONS`] – if you display meshes on the GPU/in realtime.
 ///
 /// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g. an offline path tracer or the like.
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct LoadOptions {
     /// Merge identical positions.
     ///
@@ -455,6 +468,7 @@ pub struct LoadOptions {
     ///   }
     ///   ```
     #[cfg(feature = "reordering")]
+    #[derive(Debug, Default)]
     pub reorder_data: bool,
     /// Create a single index.
     ///
@@ -534,36 +548,24 @@ impl LoadOptions {
     }
 }
 
-impl Default for LoadOptions {
-    fn default() -> Self {
-        Self {
-            #[cfg(feature = "merging")]
-            merge_identical_points: false,
-            #[cfg(feature = "reordering")]
-            reorder_data: false,
-            single_index: false,
-            triangulate: false,
-            ignore_points: false,
-            ignore_lines: false,
-        }
-    }
-}
-
 /// A named model within the file.
 ///
 /// Associates some mesh with a name that was specified with an `o` or `g`
 /// keyword in the `OBJ` file.
 #[derive(Clone, Debug)]
-pub struct Model {
+pub struct Model<T: ParseableV> {
     /// [`Mesh`] used by the model containing its geometry.
-    pub mesh: Mesh,
+    pub mesh: Mesh<T>,
     /// Name assigned to this `Mesh`.
     pub name: String,
 }
 
-impl Model {
+impl<T> Model<T>
+where
+    T: ParseableV,
+{
     /// Create a new model, associating a name with a [`Mesh`].
-    pub fn new(mesh: Mesh, name: String) -> Model {
+    pub fn new(mesh: Mesh<T>, name: String) -> Model<T> {
         Model { mesh, name }
     }
 }
@@ -691,7 +693,7 @@ impl Error for LoadError {}
 /// A [`Result`] containing all the models loaded from the file and any
 /// materials from referenced material libraries. Or an error that occured while
 /// loading.
-pub type LoadResult = Result<(Vec<Model>, Result<Vec<Material>, LoadError>), LoadError>;
+pub type LoadResult<T> = Result<(Vec<Model<T>>, Result<Vec<Material>, LoadError>), LoadError>;
 
 /// A [`Result`] containing all the materials loaded from the file and a map of
 /// `MTL` name to index. Or an error that occured while loading.
@@ -768,7 +770,7 @@ enum Face {
 
 /// Parse the float information from the words. Words is an iterator over the
 /// float strings. Returns `false` if parsing failed.
-fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn<T: ParseableV>(val_str: &mut SplitWhitespace, vals: &mut Vec<T>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str.take(n) {
         match FromStr::from_str(p) {
@@ -776,12 +778,12 @@ fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<f32>, n: usize) ->
             Err(_) => return false,
         }
     }
-    // Require that we found the desired number of f32s.
+    // Require that we found the desired number of values.
     sz + n == vals.len()
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
-fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
+fn parse_float3<T: ParseableV>(val_str: SplitWhitespace, vals: &mut [T; 3]) -> bool {
     for (i, p) in val_str.enumerate().take(3) {
         match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
@@ -825,14 +827,14 @@ fn parse_face(
 /// Add a vertex to a mesh by either re-using an existing index (e.g. it's in
 /// the `index_map`) or appending the position, texcoord and normal as
 /// appropriate and creating a new vertex.
-fn add_vertex(
-    mesh: &mut Mesh,
+fn add_vertex<T: ParseableV>(
+    mesh: &mut Mesh<T>,
     index_map: &mut HashMap<VertexIndices, u32>,
     vert: &VertexIndices,
-    pos: &[f32],
+    pos: &[T],
     v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    texcoord: &[T],
+    normal: &[T],
 ) -> Result<(), LoadError> {
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
@@ -863,12 +865,18 @@ fn add_vertex(
                 mesh.normals.push(normal[vn * 3 + 2]);
             }
             if !v_color.is_empty() {
-                if v * 3 + 2 >= v_color.len() {
+                if v_color.len() == 3 || v_color.len() == 4 {
+                    mesh.vertex_color.push(v_color[0]);
+                    mesh.vertex_color.push(v_color[1]);
+                    mesh.vertex_color.push(v_color[2]);
+                } else if v * 3 + 2 >= v_color.len() {
+                    println!("`add_vertex` v_color.len={}", v_color.len());
                     return Err(LoadError::FaceColorOutOfBounds);
+                } else {
+                    mesh.vertex_color.push(v_color[v * 3]);
+                    mesh.vertex_color.push(v_color[v * 3 + 1]);
+                    mesh.vertex_color.push(v_color[v * 3 + 2]);
                 }
-                mesh.vertex_color.push(v_color[v * 3]);
-                mesh.vertex_color.push(v_color[v * 3 + 1]);
-                mesh.vertex_color.push(v_color[v * 3 + 2]);
             }
             let next = index_map.len() as u32;
             mesh.indices.push(next);
@@ -880,15 +888,15 @@ fn add_vertex(
 
 /// Export a list of faces to a mesh and return it, optionally converting quads
 /// to tris.
-fn export_faces(
-    pos: &[f32],
+fn export_faces<T: ParseableV>(
+    pos: &[T],
     v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    texcoord: &[T],
+    normal: &[T],
     faces: &[Face],
     mat_id: Option<usize>,
     load_options: &LoadOptions,
-) -> Result<Mesh, LoadError> {
+) -> Result<Mesh<T>, LoadError> {
     let mut index_map = HashMap::new();
     let mut mesh = Mesh {
         material_id: mat_id,
@@ -981,16 +989,16 @@ fn export_faces(
 /// appropriate and creating a new vertex.
 #[allow(clippy::too_many_arguments)]
 #[inline]
-fn add_vertex_multi_index(
-    mesh: &mut Mesh,
+fn add_vertex_multi_index<T: ParseableV>(
+    mesh: &mut Mesh<T>,
     index_map: &mut HashMap<usize, u32>,
     normal_index_map: &mut HashMap<usize, u32>,
     texcoord_index_map: &mut HashMap<usize, u32>,
     vert: &VertexIndices,
-    pos: &[f32],
+    pos: &[T],
     v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    texcoord: &[T],
+    normal: &[T],
 ) -> Result<(), LoadError> {
     match index_map.get(&vert.v) {
         Some(&i) => mesh.indices.push(i),
@@ -1012,15 +1020,20 @@ fn add_vertex_multi_index(
 
             // Also add vertex colors to the mesh if present.
             if !v_color.is_empty() {
-                let vertex = vert.v as usize;
+                let v = vert.v as usize;
 
-                if vertex * 3 + 2 >= v_color.len() {
+                if v_color.len() == 3 || v_color.len() == 4 {
+                    mesh.vertex_color.push(v_color[0]);
+                    mesh.vertex_color.push(v_color[1]);
+                    mesh.vertex_color.push(v_color[2]);
+                } else if v * 3 + 2 >= v_color.len() {
+                    println!("`add_vertex` v_color.len={}", v_color.len());
                     return Err(LoadError::FaceColorOutOfBounds);
+                } else {
+                    mesh.vertex_color.push(v_color[v * 3]);
+                    mesh.vertex_color.push(v_color[v * 3 + 1]);
+                    mesh.vertex_color.push(v_color[v * 3 + 2]);
                 }
-
-                mesh.vertex_color.push(v_color[vertex * 3]);
-                mesh.vertex_color.push(v_color[vertex * 3 + 1]);
-                mesh.vertex_color.push(v_color[vertex * 3 + 2]);
             }
         }
     }
@@ -1112,15 +1125,15 @@ fn add_vertex_multi_index(
 
 /// Export a list of faces to a mesh and return it, optionally converting quads
 /// to tris.
-fn export_faces_multi_index(
-    pos: &[f32],
+fn export_faces_multi_index<T: ParseableV>(
+    pos: &[T],
     v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    texcoord: &[T],
+    normal: &[T],
     faces: &[Face],
     mat_id: Option<usize>,
     load_options: &LoadOptions,
-) -> Result<Mesh, LoadError> {
+) -> Result<Mesh<T>, LoadError> {
     let mut index_map = HashMap::new();
     let mut normal_index_map = HashMap::new();
     let mut texcoord_index_map = HashMap::new();
@@ -1430,7 +1443,7 @@ fn export_faces_multi_index(
 
 #[cfg(feature = "reordering")]
 #[inline]
-fn reorder_data(mesh: &mut Mesh) {
+fn reorder_data<T: ParseableV>(mesh: &mut Mesh<T>) {
     // If we have per face per vertex data for UVs ...
     if mesh.positions.len() < mesh.texcoords.len() {
         mesh.texcoords = mesh
@@ -1500,26 +1513,28 @@ fn reorder_data(mesh: &mut Mesh) {
 /// Merge identical points. A point has dimension N.
 #[cfg(feature = "merging")]
 #[inline]
-fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut Vec<u32>)
-where
-    [(); size_of::<[f32; N]>()]:,
+fn merge_identical_points<T: ParseableV, const N: usize>(
+    points: &mut Vec<T>,
+    indices: &mut Vec<u32>,
+) where
+    [(); size_of::<[T; N]>()]:,
 {
     if indices.is_empty() {
         return;
     }
 
     let mut compressed_indices = Vec::new();
-    let mut canonical_indices = HashMap::<[u8; size_of::<[f32; N]>()], u32>::new();
+    let mut canonical_indices = HashMap::<[u8; size_of::<[T; N]>()], u32>::new();
 
     let mut index = 0;
     *points = points
         .chunks(N)
         .filter_map(|position| {
-            let position: &[f32; N] = &unsafe { *(position.as_ptr() as *const [f32; N]) };
+            let position: &[T; N] = &unsafe { *(position.as_ptr() as *const [T; N]) };
 
             // Ugly, but f32 has no Eq and no Hash.
             let bitpattern =
-                unsafe { std::mem::transmute::<&[f32; N], &[u8; size_of::<[f32; N]>()]>(position) };
+                unsafe { std::mem::transmute::<&[T; N], &[u8; size_of::<[T; N]>()]>(position) };
 
             match canonical_indices.get(bitpattern) {
                 Some(&other_index) => {
@@ -1552,7 +1567,7 @@ where
 ///
 /// * `load_options` – Governs on-the-fly processing of the mesh during loading.
 ///   See [`LoadOptions`] for more information.
-pub fn load_obj<P>(file_name: P, load_options: &LoadOptions) -> LoadResult
+pub fn load_obj<P, T: ParseableV>(file_name: P, load_options: &LoadOptions) -> LoadResult<T>
 where
     P: AsRef<Path> + fmt::Debug,
 {
@@ -1632,7 +1647,7 @@ where
 /// let mut cornell_box_mtl2 = dir.clone();
 /// cornell_box_mtl2.push("obj/cornell_box2.mtl");
 ///
-/// let m = tobj::load_obj_buf(
+/// let m = tobj::load_obj_buf::<_, _, f64>(
 ///     &mut cornell_box_file,
 ///     &tobj::LoadOptions {
 ///         triangulate: true,
@@ -1652,11 +1667,11 @@ where
 ///     },
 /// );
 /// ```
-pub fn load_obj_buf<B, ML>(
+pub fn load_obj_buf<B, ML, T: ParseableV>(
     reader: &mut B,
     load_options: &LoadOptions,
     material_loader: ML,
-) -> LoadResult
+) -> LoadResult<T>
 where
     B: BufRead,
     ML: Fn(&Path) -> MTLLoadResult,
@@ -1752,7 +1767,7 @@ where
                     ));
                     tmp_faces.clear();
                 }
-                let size = line.chars().nth(0).unwrap().len_utf8();
+                let size = line.chars().next().unwrap().len_utf8();
                 name = line[size..].trim().to_owned();
                 if name.is_empty() {
                     name = "unnamed_object".to_owned();
@@ -1781,7 +1796,7 @@ where
                 }
             }
             Some("usemtl") => {
-                let mat_name = line.split_once(" ").unwrap_or_default().1.trim().to_owned();
+                let mat_name = line.split_once(' ').unwrap_or_default().1.trim().to_owned();
 
                 if !mat_name.is_empty() {
                     let new_mat = mat_map.get(&mat_name).cloned();

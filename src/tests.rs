@@ -12,7 +12,7 @@ const CORNELL_BOX_MTL2: &'static str = include_str!("../obj/cornell_box2.mtl");
 
 #[test]
 fn simple_triangle() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/triangle.obj",
         &tobj::LoadOptions {
             single_index: true,
@@ -45,7 +45,7 @@ fn simple_triangle() {
 
 #[test]
 fn simple_triangle_colored() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/triangle_colored.obj",
         &tobj::LoadOptions {
             single_index: true,
@@ -130,7 +130,7 @@ fn simple_quad_colored_merge() {
 
 #[test]
 fn empty_name_triangle() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/empty_name_triangle.obj",
         &tobj::LoadOptions {
             single_index: true,
@@ -160,7 +160,7 @@ fn empty_name_triangle() {
 
 #[test]
 fn test_lines() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/lines.obj",
         &tobj::LoadOptions {
             single_index: true,
@@ -190,7 +190,7 @@ fn test_lines() {
 
 #[test]
 fn non_triangulated_quad() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/quad.obj",
         &tobj::LoadOptions {
             single_index: true,
@@ -219,7 +219,7 @@ fn non_triangulated_quad() {
 
 #[test]
 fn multiple_face_formats() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/quad.obj",
         &tobj::LoadOptions {
             triangulate: true,
@@ -266,7 +266,7 @@ fn multiple_face_formats() {
     assert!(tri.texcoords.is_empty());
 }
 
-fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
+fn validate_cornell(models: Vec<tobj::Model<f64>>, mats: Vec<tobj::Material>) {
     // Verify the floor loaded properly
     assert_eq!(models[0].name, "floor");
     let mesh = &models[0].mesh;
@@ -274,8 +274,8 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let expect_indices = vec![0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11];
     // Will this be an issue with floating point precision?
     let expect_verts = vec![
-        552.799988, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
-        559.200012, 549.599976, 0.000000, 559.200012, 290.000000, 0.000000, 114.000000, 240.000000,
+        552.8, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
+        559.2, 549.6, 0.000000, 559.2, 290.000000, 0.000000, 114.000000, 240.000000,
         0.000000, 272.000000, 82.000000, 0.000000, 225.000000, 130.000000, 0.000000, 65.000000,
         472.000000, 0.000000, 406.000000, 314.000000, 0.000000, 456.000000, 265.000000, 0.000000,
         296.000000, 423.000000, 0.000000, 247.000000,
@@ -300,8 +300,8 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[2].mesh;
     assert_eq!(mesh.material_id, Some(0));
     let expect_verts = vec![
-        556.000000, 548.799988, 0.000000, 556.000000, 548.799988, 559.200012, 0.000000, 548.799988,
-        559.200012, 0.000000, 548.799988, 0.000000,
+        556.000000, 548.8, 0.000000, 556.000000, 548.8, 559.2, 0.000000, 548.8,
+        559.2, 0.000000, 548.8, 0.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
@@ -311,8 +311,8 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[3].mesh;
     assert_eq!(mesh.material_id, Some(0));
     let expect_verts = vec![
-        549.599976, 0.000000, 559.200012, 0.000000, 0.000000, 559.200012, 0.000000, 548.799988,
-        559.200012, 556.000000, 548.799988, 559.200012,
+        549.6, 0.000000, 559.2, 0.000000, 0.000000, 559.2, 0.000000, 548.8,
+        559.2, 556.000000, 548.8, 559.2,
     ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
@@ -322,8 +322,8 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[4].mesh;
     assert_eq!(mesh.material_id, Some(4));
     let expect_verts = vec![
-        0.000000, 0.000000, 559.200012, 0.000000, 0.000000, 0.000000, 0.000000, 548.799988,
-        0.000000, 0.000000, 548.799988, 559.200012,
+        0.000000, 0.000000, 559.2, 0.000000, 0.000000, 0.000000, 0.000000, 548.8,
+        0.000000, 0.000000, 548.8, 559.2,
     ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
@@ -333,8 +333,8 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[5].mesh;
     assert_eq!(mesh.material_id, Some(1));
     let expect_verts = vec![
-        552.799988, 0.000000, 0.000000, 549.599976, 0.000000, 559.200012, 556.000000, 548.799988,
-        559.200012, 556.000000, 548.799988, 0.000000,
+        552.8, 0.000000, 0.000000, 549.6, 0.000000, 559.2, 556.000000, 548.8,
+        559.2, 556.000000, 548.8, 0.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
     assert_eq!(mesh.positions, expect_verts);
@@ -556,7 +556,7 @@ fn test_custom_material_loader_files() {
 
 #[test]
 fn test_invalid_index() {
-    let m = tobj::load_obj(
+    let m = tobj::load_obj::<_, f64>(
         "obj/invalid_index.obj",
         &tobj::LoadOptions {
             triangulate: true,

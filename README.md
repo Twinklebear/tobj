@@ -1,7 +1,12 @@
-# `tobj` – Tiny OBJ Loader
+# `tobj64` – Tiny OBJ Loader (64-bit)
 
-[![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
-![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg)
+**NB:** This is a clone of the tobj crate with the only difference being that it uses f64
+for higher precision parsing of coordinates. This will likely rduce performance, but sometimes
+precision is more importance than performance (and for this purpose it was simpler to fork the
+crate than start afresh).
+
+<!-- [![Crate](https://img.shields.io/crates/v/tobj.svg)](https://crates.io/crates/tobj)
+![Build Status](https://github.com/Twinklebear/tobj/workflows/CI/badge.svg) -->
 
 Inspired by Syoyo’s excellent [`tinyobjloader`](https://github.com/syoyo/tinyobjloader).
 Aims to be a simple and lightweight option for loading `OBJ` files.
