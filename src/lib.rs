@@ -771,15 +771,21 @@ enum Face {
 /// Parse the float information from the words. Words is an iterator over the
 /// float strings. Returns `false` if parsing failed.
 fn parse_floatn<T: ParseableV>(val_str: &mut SplitWhitespace, vals: &mut Vec<T>, n: usize) -> bool {
-    let sz = vals.len();
+    // If we are failing. We need to return before we add the failed parse to the value vector.
+    let mut temp: Vec<T> = Vec::with_capacity(4);
     for p in val_str.take(n) {
         match FromStr::from_str(p) {
-            Ok(x) => vals.push(x),
+            Ok(x) => temp.push(x),
             Err(_) => return false,
         }
     }
     // Require that we found the desired number of values.
-    sz + n == vals.len()
+    if n == temp.len() {
+        vals.append(&mut temp);
+        true
+    } else {
+        false
+    }
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
@@ -871,6 +877,7 @@ fn add_vertex<T: ParseableV>(
                     mesh.vertex_color.push(v_color[2]);
                 } else if v * 3 + 2 >= v_color.len() {
                     println!("`add_vertex` v_color.len={}", v_color.len());
+                    println!("`add_vertex` pos.len={}", pos.len());
                     return Err(LoadError::FaceColorOutOfBounds);
                 } else {
                     mesh.vertex_color.push(v_color[v * 3]);
@@ -1028,6 +1035,7 @@ fn add_vertex_multi_index<T: ParseableV>(
                     mesh.vertex_color.push(v_color[2]);
                 } else if v * 3 + 2 >= v_color.len() {
                     println!("`add_vertex` v_color.len={}", v_color.len());
+                    println!("`add_vertex` pos.len={}", pos.len());
                     return Err(LoadError::FaceColorOutOfBounds);
                 } else {
                     mesh.vertex_color.push(v_color[v * 3]);
