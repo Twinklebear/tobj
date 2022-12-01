@@ -61,11 +61,11 @@
 //! be sent to a realtime rendering context (game engine, GPU etc.).
 //!
 //! ```
-//! use tobj;
+//! use tobj64;
 //!
-//! let cornell_box = tobj::load_obj::<_, f64>(
+//! let cornell_box = tobj64::load_obj::<_, f64>(
 //!     "obj/cornell_box.obj",
-//!     &tobj::GPU_LOAD_OPTIONS,
+//!     &tobj64::GPU_LOAD_OPTIONS,
 //! );
 //! assert!(cornell_box.is_ok());
 //!
@@ -195,6 +195,7 @@
 //!   support blocking IO (e.g. WebAssembly).
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
 #![cfg_attr(feature = "merging", feature(generic_const_exprs))]
+#![allow(clippy::derive_partial_eq_without_eq)]
 
 #[cfg(test)]
 mod tests;
@@ -284,9 +285,9 @@ impl ParseableV for u8 {}
 /// empty.
 ///
 /// ```
-/// let cornell_box = tobj::load_obj::<_, f64>(
+/// let cornell_box = tobj64::load_obj::<_, f64>(
 ///     "obj/cornell_box.obj",
-///     &tobj::GPU_LOAD_OPTIONS,
+///     &tobj64::GPU_LOAD_OPTIONS,
 /// );
 /// assert!(cornell_box.is_ok());
 ///
@@ -1655,9 +1656,9 @@ where
 /// let mut cornell_box_mtl2 = dir.clone();
 /// cornell_box_mtl2.push("obj/cornell_box2.mtl");
 ///
-/// let m = tobj::load_obj_buf::<_, _, f64>(
+/// let m = tobj64::load_obj_buf::<_, _, f64>(
 ///     &mut cornell_box_file,
-///     &tobj::LoadOptions {
+///     &tobj64::LoadOptions {
 ///         triangulate: true,
 ///         single_index: true,
 ///         ..Default::default()
@@ -1665,11 +1666,11 @@ where
 ///     |p| match p.file_name().unwrap().to_str().unwrap() {
 ///         "cornell_box.mtl" => {
 ///             let f = File::open(cornell_box_mtl1.as_path()).unwrap();
-///             tobj::load_mtl_buf(&mut BufReader::new(f))
+///             tobj64::load_mtl_buf(&mut BufReader::new(f))
 ///         }
 ///         "cornell_box2.mtl" => {
 ///             let f = File::open(cornell_box_mtl2.as_path()).unwrap();
-///             tobj::load_mtl_buf(&mut BufReader::new(f))
+///             tobj64::load_mtl_buf(&mut BufReader::new(f))
 ///         }
 ///         _ => unreachable!(),
 ///     },
@@ -2052,9 +2053,9 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///     cornell_box_obj.push("obj/cornell_box.obj");
 ///     let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 ///
-///     let m = tobj::load_obj_buf_async(
+///     let m = tobj64::load_obj_buf_async(
 ///         &mut cornell_box_file,
-///         &tobj::GPU_LOAD_OPTIONS,
+///         &tobj64::GPU_LOAD_OPTIONS,
 ///         move |p| {
 ///             let dir_clone = dir.clone();
 ///             async move {
@@ -2067,11 +2068,11 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///                 match p.as_str() {
 ///                     "cornell_box.mtl" => {
 ///                         let f = File::open(cornell_box_mtl1.as_path()).unwrap();
-///                         tobj::load_mtl_buf(&mut BufReader::new(f))
+///                         tobj64::load_mtl_buf(&mut BufReader::new(f))
 ///                     }
 ///                     "cornell_box2.mtl" => {
 ///                         let f = File::open(cornell_box_mtl2.as_path()).unwrap();
-///                         tobj::load_mtl_buf(&mut BufReader::new(f))
+///                         tobj64::load_mtl_buf(&mut BufReader::new(f))
 ///                     }
 ///                     _ => unreachable!(),
 ///                 }
