@@ -23,7 +23,7 @@
 //!
 //! ## Flat Data
 //!
-//! Values are stored packed as [`f32`]s in flat `Vec`s.
+//! Values are stored packed as [`f32`]s (or [`f64`]s with the use_f64 feature) in flat `Vec`s.
 //!
 //! For example, the `positions` member of a `Mesh` will contain `[x, y, z, x,
 //! y, z, ...]` which you can then use however you like.
@@ -193,6 +193,9 @@
 //! * [`async`](load_obj_buf_async) – Adds support for async loading of obj files from a buffer,
 //!   with an async material loader. Useful in environments that do not
 //!   support blocking IO (e.g. WebAssembly).
+//!
+//! * ['use_f64'] - Uses double-precision (f64) instead of single-precision (f32) floating point
+//!   types
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
 #![cfg_attr(feature = "merging", feature(generic_const_exprs))]
 
@@ -207,6 +210,12 @@ use std::{
     path::Path,
     str::{FromStr, SplitWhitespace},
 };
+
+#[cfg(feature = "use_f64")]
+type Float = f64;
+
+#[cfg(not(feature = "use_f64"))]
+type Float = f32;
 
 #[cfg(feature = "async")]
 use std::future::Future;
@@ -257,7 +266,7 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// It is assumed that all meshes will at least have positions, but normals and
 /// texture coordinates are optional. If no normals or texture coordinates where
 /// found then the corresponding `Vec`s in the `Mesh` will be empty. Values are
-/// stored packed as [`f32`]s in  flat `Vec`s.
+/// stored packed as [`f32`]s  (or [`f64`]s with the use_f64 feature) in  flat `Vec`s.
 ///
 /// For examples the `positions` member of a loaded mesh will contain `[x, y, z,
 /// x, y, z, ...]` which you can then use however you like. Indices are also
@@ -307,25 +316,25 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing positions of
     /// vertices in the mesh.
-    pub positions: Vec<f32>,
+    pub positions: Vec<Float>,
     /// Flattened 3 component floating point vectors, storing the color
     /// associated with the vertices in the mesh.
     ///
     /// Most meshes do not have vertex colors. If no vertex colors are specified
     /// this will be empty.
-    pub vertex_color: Vec<f32>,
+    pub vertex_color: Vec<Float>,
     /// Flattened 3 component floating point vectors, storing normals of
     /// vertices in the mesh.
     ///
     /// Not all meshes have normals. If no normals are specified this will
     /// be empty.
-    pub normals: Vec<f32>,
+    pub normals: Vec<Float>,
     /// Flattened 2 component floating point vectors, storing texture
     /// coordinates of vertices in the mesh.
     ///
     /// Not all meshes have texture coordinates. If no texture coordinates are
     /// specified this will be empty.
-    pub texcoords: Vec<f32>,
+    pub texcoords: Vec<Float>,
     /// Indices for vertices of each face. If loaded with
     /// [`triangulate`](LoadOptions::triangulate) set to `true` each face in the
     /// mesh is a triangle.
@@ -581,21 +590,21 @@ pub struct Material {
     /// Material name as specified in the `MTL` file.
     pub name: String,
     /// Ambient color of the material.
-    pub ambient: [f32; 3],
+    pub ambient: [Float; 3],
     /// Diffuse color of the material.
-    pub diffuse: [f32; 3],
+    pub diffuse: [Float; 3],
     /// Specular color of the material.
-    pub specular: [f32; 3],
+    pub specular: [Float; 3],
     /// Material shininess attribute. Also called `glossiness`.
-    pub shininess: f32,
+    pub shininess: Float,
     /// Dissolve attribute is the alpha term for the material. Referred to as
     /// dissolve since that's what the `MTL` file format docs refer to it as.
-    pub dissolve: f32,
+    pub dissolve: Float,
     /// Optical density also known as index of refraction. Called
     /// `optical_density` in the `MTL` specc. Takes on a value between 0.001
     /// and 10.0. 1.0 means light does not bend as it passes through
     /// the object.
-    pub optical_density: f32,
+    pub optical_density: Float,
     /// Name of the ambient texture file for the material.
     pub ambient_texture: String,
     /// Name of the diffuse texture file for the material.
@@ -768,7 +777,7 @@ enum Face {
 
 /// Parse the float information from the words. Words is an iterator over the
 /// float strings. Returns `false` if parsing failed.
-fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<f32>, n: usize) -> bool {
+fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<Float>, n: usize) -> bool {
     let sz = vals.len();
     for p in val_str.take(n) {
         match FromStr::from_str(p) {
@@ -776,12 +785,12 @@ fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<f32>, n: usize) ->
             Err(_) => return false,
         }
     }
-    // Require that we found the desired number of f32s.
+    // Require that we found the desired number of floats.
     sz + n == vals.len()
 }
 
 /// Parse the float3 into the array passed, returns false if parsing failed
-fn parse_float3(val_str: SplitWhitespace, vals: &mut [f32; 3]) -> bool {
+fn parse_float3(val_str: SplitWhitespace, vals: &mut [Float; 3]) -> bool {
     for (i, p) in val_str.enumerate().take(3) {
         match FromStr::from_str(p) {
             Ok(x) => vals[i] = x,
@@ -829,10 +838,10 @@ fn add_vertex(
     mesh: &mut Mesh,
     index_map: &mut HashMap<VertexIndices, u32>,
     vert: &VertexIndices,
-    pos: &[f32],
-    v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    pos: &[Float],
+    v_color: &[Float],
+    texcoord: &[Float],
+    normal: &[Float],
 ) -> Result<(), LoadError> {
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
@@ -881,10 +890,10 @@ fn add_vertex(
 /// Export a list of faces to a mesh and return it, optionally converting quads
 /// to tris.
 fn export_faces(
-    pos: &[f32],
-    v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    pos: &[Float],
+    v_color: &[Float],
+    texcoord: &[Float],
+    normal: &[Float],
     faces: &[Face],
     mat_id: Option<usize>,
     load_options: &LoadOptions,
@@ -987,10 +996,10 @@ fn add_vertex_multi_index(
     normal_index_map: &mut HashMap<usize, u32>,
     texcoord_index_map: &mut HashMap<usize, u32>,
     vert: &VertexIndices,
-    pos: &[f32],
-    v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    pos: &[Float],
+    v_color: &[Float],
+    texcoord: &[Float],
+    normal: &[Float],
 ) -> Result<(), LoadError> {
     match index_map.get(&vert.v) {
         Some(&i) => mesh.indices.push(i),
@@ -1113,10 +1122,10 @@ fn add_vertex_multi_index(
 /// Export a list of faces to a mesh and return it, optionally converting quads
 /// to tris.
 fn export_faces_multi_index(
-    pos: &[f32],
-    v_color: &[f32],
-    texcoord: &[f32],
-    normal: &[f32],
+    pos: &[Float],
+    v_color: &[Float],
+    texcoord: &[Float],
+    normal: &[Float],
     faces: &[Face],
     mat_id: Option<usize>,
     load_options: &LoadOptions,
@@ -1500,26 +1509,27 @@ fn reorder_data(mesh: &mut Mesh) {
 /// Merge identical points. A point has dimension N.
 #[cfg(feature = "merging")]
 #[inline]
-fn merge_identical_points<const N: usize>(points: &mut Vec<f32>, indices: &mut Vec<u32>)
+fn merge_identical_points<const N: usize>(points: &mut Vec<Float>, indices: &mut Vec<u32>)
 where
-    [(); size_of::<[f32; N]>()]:,
+    [(); size_of::<[Float; N]>()]:,
 {
     if indices.is_empty() {
         return;
     }
 
     let mut compressed_indices = Vec::new();
-    let mut canonical_indices = HashMap::<[u8; size_of::<[f32; N]>()], u32>::new();
+    let mut canonical_indices = HashMap::<[u8; size_of::<[Float; N]>()], u32>::new();
 
     let mut index = 0;
     *points = points
         .chunks(N)
         .filter_map(|position| {
-            let position: &[f32; N] = &unsafe { *(position.as_ptr() as *const [f32; N]) };
+            let position: &[Float; N] = &unsafe { *(position.as_ptr() as *const [Float; N]) };
 
-            // Ugly, but f32 has no Eq and no Hash.
-            let bitpattern =
-                unsafe { std::mem::transmute::<&[f32; N], &[u8; size_of::<[f32; N]>()]>(position) };
+            // Ugly, but floats have no Eq and no Hash.
+            let bitpattern = unsafe {
+                std::mem::transmute::<&[Float; N], &[u8; size_of::<[Float; N]>()]>(position)
+            };
 
             match canonical_indices.get(bitpattern) {
                 Some(&other_index) => {

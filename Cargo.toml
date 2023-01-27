@@ -25,6 +25,7 @@ merging = []
 reordering = []
 async = []
 arbitrary = ["arbitrary/derive"]
+use_f64 = []
 
 [dependencies]
 arbitrary = { version = "1.2.3", optional = true }
@@ -33,6 +34,7 @@ log = { version = "0.4.17", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4.2"
+float_eq = "1.0.1"
 
 [package.metadata.docs.rs]
-features = ["log", "merging", "reordering", "async"]
+features = ["log", "merging", "reordering", "async", "use_f64"]

@@ -1,3 +1,4 @@
+use float_eq::assert_float_eq;
 use std::{
     env,
     fs::File,
@@ -9,6 +10,10 @@ use crate as tobj;
 const CORNELL_BOX_OBJ: &'static str = include_str!("../obj/cornell_box.obj");
 const CORNELL_BOX_MTL1: &'static str = include_str!("../obj/cornell_box.mtl");
 const CORNELL_BOX_MTL2: &'static str = include_str!("../obj/cornell_box2.mtl");
+
+// Set the tolerance for float comparison
+use crate::Float;
+const TOL: Float = 0.0000001;
 
 #[test]
 fn simple_triangle() {
@@ -34,7 +39,7 @@ fn simple_triangle() {
 
     // Verify each position is loaded properly
     let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    assert_eq!(mesh.positions, expect_pos);
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 2];
     assert_eq!(mesh.indices, expect_idx);
@@ -67,14 +72,14 @@ fn simple_triangle_colored() {
 
     // Verify each position is loaded properly
     let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    assert_eq!(mesh.positions, expect_pos);
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 2];
     assert_eq!(mesh.indices, expect_idx);
 
     // Verify vertex colors are loaded
     let expect_vertex_color = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    assert_eq!(mesh.vertex_color, expect_vertex_color);
+    assert_float_eq!(mesh.vertex_color, expect_vertex_color, r2nd_all <= TOL);
 }
 
 #[test]
@@ -109,7 +114,7 @@ fn simple_quad_colored_merge() {
         0.0, 1.0, 0.0,
         1.0, 1.0, 0.0,
     ];
-    assert_eq!(mesh.positions, expect_pos);
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 2, 1, 2, 3];
     assert_eq!(mesh.indices, expect_idx);
@@ -123,7 +128,7 @@ fn simple_quad_colored_merge() {
         0.0, 0.0, 0.0,
         1.0, 1.0, 1.0,
     ];
-    assert_eq!(mesh.vertex_color, expect_vertex_color);
+    assert_float_eq!(mesh.vertex_color, expect_vertex_color, r2nd_all <= TOL);
     let expect_vertex_color_index = vec![0, 1, 2, 3, 2, 4];
     assert_eq!(mesh.vertex_color_indices, expect_vertex_color_index);
 }
@@ -152,7 +157,7 @@ fn empty_name_triangle() {
 
     // Verify each position is loaded properly
     let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    assert_eq!(mesh.positions, expect_pos);
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 2];
     assert_eq!(mesh.indices, expect_idx);
@@ -182,7 +187,7 @@ fn test_lines() {
 
     // Verify each position is loaded properly
     let expect_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    assert_eq!(mesh.positions, expect_pos);
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
     // Verify the indices are loaded properly
     let expect_idx = vec![0, 1, 1, 2, 2, 0];
     assert_eq!(mesh.indices, expect_idx);
@@ -241,17 +246,17 @@ fn multiple_face_formats() {
     let quad_expect_pos = vec![0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0];
     let quad_expect_tex = vec![0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0];
     let quad_expect_idx = vec![0, 1, 2, 0, 2, 3];
-    assert_eq!(quad.positions, quad_expect_pos);
-    assert_eq!(quad.texcoords, quad_expect_tex);
+    assert_float_eq!(quad.positions, quad_expect_pos, r2nd_all <= TOL);
+    assert_float_eq!(quad.texcoords, quad_expect_tex, r2nd_all <= TOL);
     assert_eq!(quad.indices, quad_expect_idx);
 
     assert_eq!(models[1].name, "Quad_face");
     let quad_face = &models[1].mesh;
     let quad_expect_normals = vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
     assert_eq!(quad_face.material_id, None);
-    assert_eq!(quad_face.positions, quad_expect_pos);
-    assert_eq!(quad_face.texcoords, quad_expect_tex);
-    assert_eq!(quad_face.normals, quad_expect_normals);
+    assert_float_eq!(quad_face.positions, quad_expect_pos, r2nd_all <= TOL);
+    assert_float_eq!(quad_face.texcoords, quad_expect_tex, r2nd_all <= TOL);
+    assert_float_eq!(quad_face.normals, quad_expect_normals, r2nd_all <= TOL);
     assert_eq!(quad_face.indices, quad_expect_idx);
 
     assert_eq!(models[2].name, "Tri_v_vn");
@@ -260,8 +265,8 @@ fn multiple_face_formats() {
     let tri_expect_normals = vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
     let tri_expect_idx = vec![0, 1, 2];
     assert_eq!(tri.material_id, None);
-    assert_eq!(tri.positions, tri_expect_pos);
-    assert_eq!(tri.normals, tri_expect_normals);
+    assert_float_eq!(tri.positions, tri_expect_pos, r2nd_all <= TOL);
+    assert_float_eq!(tri.normals, tri_expect_normals, r2nd_all <= TOL);
     assert_eq!(tri.indices, tri_expect_idx);
     assert!(tri.texcoords.is_empty());
 }
@@ -272,7 +277,6 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     let mesh = &models[0].mesh;
     assert_eq!(mesh.material_id, Some(0));
     let expect_indices = vec![0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11];
-    // Will this be an issue with floating point precision?
     let expect_verts = vec![
         552.799988, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
         559.200012, 549.599976, 0.000000, 559.200012, 290.000000, 0.000000, 114.000000, 240.000000,
@@ -281,7 +285,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         296.000000, 423.000000, 0.000000, 247.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the light loaded properly
     assert_eq!(models[1].name, "light");
@@ -293,7 +297,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         548.000000, 332.000000, 213.000000, 548.000000, 227.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the ceiling loaded properly
     assert_eq!(models[2].name, "ceiling");
@@ -304,7 +308,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         559.200012, 0.000000, 548.799988, 0.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the back wall loaded properly
     assert_eq!(models[3].name, "back_wall");
@@ -315,7 +319,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         559.200012, 556.000000, 548.799988, 559.200012,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the green wall loaded properly
     assert_eq!(models[4].name, "green_wall");
@@ -326,7 +330,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         0.000000, 0.000000, 548.799988, 559.200012,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the red wall loaded properly
     assert_eq!(models[5].name, "red_wall");
@@ -337,7 +341,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         559.200012, 556.000000, 548.799988, 0.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the short block loaded properly
     assert_eq!(models[6].name, "short_block");
@@ -358,7 +362,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         272.000000, 82.000000, 165.000000, 225.000000, 82.000000, 0.000000, 225.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify the tall block loaded properly
     assert_eq!(models[7].name, "tall_block");
@@ -380,14 +384,14 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
         0.000000, 247.000000,
     ];
     assert_eq!(mesh.indices, expect_indices);
-    assert_eq!(mesh.positions, expect_verts);
+    assert_float_eq!(mesh.positions, expect_verts, r2nd_all <= TOL);
 
     // Verify white material loaded properly
     assert_eq!(mats[0].name, "white");
     let mat = &mats[0];
-    assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
-    assert_eq!(mat.diffuse, [1.0, 1.0, 1.0]);
-    assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse, [1.0, 1.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(
         mat.unknown_param.get("Ke").map(|s| s.as_ref()),
         Some("1 1 1")
@@ -397,9 +401,9 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify red material loaded properly
     assert_eq!(mats[1].name, "red");
     let mat = &mats[1];
-    assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
-    assert_eq!(mat.diffuse, [1.0, 0.0, 0.0]);
-    assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse, [1.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(mat.illumination_model, Some(2));
     assert_eq!(mat.ambient_texture, "this ambient texture has spaces.jpg");
     assert_eq!(mat.diffuse_texture, "this diffuse texture has spaces.jpg");
@@ -414,9 +418,9 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify blue material loaded properly
     assert_eq!(mats[2].name, "blue");
     let mat = &mats[2];
-    assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
-    assert_eq!(mat.diffuse, [0.0, 0.0, 1.0]);
-    assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse, [0.0, 0.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(mat.shininess, 10.0);
     assert_eq!(mat.unknown_param.len(), 1);
     assert_eq!(
@@ -427,18 +431,18 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify light material loaded properly
     assert_eq!(mats[3].name, "light");
     let mat = &mats[3];
-    assert_eq!(mat.ambient, [20.0, 20.0, 20.0]);
-    assert_eq!(mat.diffuse, [1.0, 1.0, 1.0]);
-    assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_float_eq!(mat.ambient, [20.0, 20.0, 20.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse, [1.0, 1.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(mat.dissolve, 0.8);
     assert_eq!(mat.optical_density, 1.25);
 
     // Verify green material loaded properly
     assert_eq!(mats[4].name, "green");
     let mat = &mats[4];
-    assert_eq!(mat.ambient, [0.0, 0.0, 0.0]);
-    assert_eq!(mat.diffuse, [0.0, 1.0, 0.0]);
-    assert_eq!(mat.specular, [0.0, 0.0, 0.0]);
+    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse, [0.0, 1.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(mat.ambient_texture, "dummy_texture.png");
     assert_eq!(mat.diffuse_texture, "dummy_texture.png");
     assert_eq!(mat.specular_texture, "dummy_texture.png");
