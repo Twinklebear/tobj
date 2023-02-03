@@ -1,6 +1,6 @@
 [package]
 name = "tobj"
-version = "3.2.3"
+version = "3.2.4"
 edition = "2018"
 authors = ["Will Usher <will@willusher.io>", "Moritz Moeller <virtualritz@protonmail.com>"]
 
