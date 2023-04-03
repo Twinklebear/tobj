@@ -23,7 +23,8 @@
 //!
 //! ## Flat Data
 //!
-//! Values are stored packed as [`f32`]s (or [`f64`]s with the use_f64 feature) in flat `Vec`s.
+//! Values are stored packed as [`f32`]s (or [`f64`]s with the use_f64 feature)
+//! in flat `Vec`s.
 //!
 //! For example, the `positions` member of a `Mesh` will contain `[x, y, z, x,
 //! y, z, ...]` which you can then use however you like.
@@ -63,10 +64,7 @@
 //! ```
 //! use tobj;
 //!
-//! let cornell_box = tobj::load_obj(
-//!     "obj/cornell_box.obj",
-//!     &tobj::GPU_LOAD_OPTIONS,
-//! );
+//! let cornell_box = tobj::load_obj("obj/cornell_box.obj", &tobj::GPU_LOAD_OPTIONS);
 //! assert!(cornell_box.is_ok());
 //!
 //! let (models, materials) = cornell_box.expect("Failed to load OBJ file");
@@ -190,12 +188,12 @@
 //! * [`reordering`](LoadOptions::reorder_data) – Adds support for reordering
 //!   the normal- and texture coordinate indices.
 //!
-//! * [`async`](load_obj_buf_async) – Adds support for async loading of obj files from a buffer,
-//!   with an async material loader. Useful in environments that do not
-//!   support blocking IO (e.g. WebAssembly).
+//! * [`async`](load_obj_buf_async) – Adds support for async loading of obj
+//!   files from a buffer, with an async material loader. Useful in environments
+//!   that do not support blocking IO (e.g. WebAssembly).
 //!
-//! * ['use_f64'] - Uses double-precision (f64) instead of single-precision (f32) floating point
-//!   types
+//! * ['use_f64'] - Uses double-precision (f64) instead of single-precision
+//!   (f32) floating point types
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
 #![cfg_attr(feature = "merging", feature(generic_const_exprs))]
 
@@ -266,7 +264,8 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// It is assumed that all meshes will at least have positions, but normals and
 /// texture coordinates are optional. If no normals or texture coordinates where
 /// found then the corresponding `Vec`s in the `Mesh` will be empty. Values are
-/// stored packed as [`f32`]s  (or [`f64`]s with the use_f64 feature) in  flat `Vec`s.
+/// stored packed as [`f32`]s  (or [`f64`]s with the use_f64 feature) in  flat
+/// `Vec`s.
 ///
 /// For examples the `positions` member of a loaded mesh will contain `[x, y, z,
 /// x, y, z, ...]` which you can then use however you like. Indices are also
@@ -280,10 +279,7 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 /// empty.
 ///
 /// ```
-/// let cornell_box = tobj::load_obj(
-///     "obj/cornell_box.obj",
-///     &tobj::GPU_LOAD_OPTIONS,
-/// );
+/// let cornell_box = tobj::load_obj("obj/cornell_box.obj", &tobj::GPU_LOAD_OPTIONS);
 /// assert!(cornell_box.is_ok());
 ///
 /// let (models, materials) = cornell_box.unwrap();
@@ -405,15 +401,16 @@ impl Default for Mesh {
 ///     single_index: true,
 ///     ..Default::default()
 /// }
-///```
+/// ```
 ///
 /// There are convenience `const`s for the most common cases:
 ///
 /// * [`GPU_LOAD_OPTIONS`] – if you display meshes on the GPU/in realtime.
 ///
-/// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g. an offline path tracer or the like.
+/// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g.
+///   an offline path tracer or the like.
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct LoadOptions {
     /// Merge identical positions.
     ///
@@ -540,21 +537,6 @@ impl LoadOptions {
         }
 
         (self.single_index != other_flags) || (!self.single_index && !other_flags)
-    }
-}
-
-impl Default for LoadOptions {
-    fn default() -> Self {
-        Self {
-            #[cfg(feature = "merging")]
-            merge_identical_points: false,
-            #[cfg(feature = "reordering")]
-            reorder_data: false,
-            single_index: false,
-            triangulate: false,
-            ignore_points: false,
-            ignore_lines: false,
-        }
     }
 }
 
@@ -846,7 +828,7 @@ fn add_vertex(
     match index_map.get(vert) {
         Some(&i) => mesh.indices.push(i),
         None => {
-            let v = vert.v as usize;
+            let v = vert.v;
             if v.saturating_mul(3).saturating_add(2) >= pos.len() {
                 return Err(LoadError::FaceVertexOutOfBounds);
             }
@@ -855,7 +837,7 @@ fn add_vertex(
             mesh.positions.push(pos[v * 3 + 1]);
             mesh.positions.push(pos[v * 3 + 2]);
             if !texcoord.is_empty() && vert.vt != MISSING_INDEX {
-                let vt = vert.vt as usize;
+                let vt = vert.vt;
                 if vt * 2 + 1 >= texcoord.len() {
                     return Err(LoadError::FaceTexCoordOutOfBounds);
                 }
@@ -863,7 +845,7 @@ fn add_vertex(
                 mesh.texcoords.push(texcoord[vt * 2 + 1]);
             }
             if !normal.is_empty() && vert.vn != MISSING_INDEX {
-                let vn = vert.vn as usize;
+                let vn = vert.vn;
                 if vn * 3 + 2 >= normal.len() {
                     return Err(LoadError::FaceNormalOutOfBounds);
                 }
@@ -1004,7 +986,7 @@ fn add_vertex_multi_index(
     match index_map.get(&vert.v) {
         Some(&i) => mesh.indices.push(i),
         None => {
-            let vertex = vert.v as usize;
+            let vertex = vert.v;
 
             if vertex.saturating_mul(3).saturating_add(2) >= pos.len() {
                 return Err(LoadError::FaceVertexOutOfBounds);
@@ -1021,7 +1003,7 @@ fn add_vertex_multi_index(
 
             // Also add vertex colors to the mesh if present.
             if !v_color.is_empty() {
-                let vertex = vert.v as usize;
+                let vertex = vert.v;
 
                 if vertex * 3 + 2 >= v_color.len() {
                     return Err(LoadError::FaceColorOutOfBounds);
@@ -1057,7 +1039,7 @@ fn add_vertex_multi_index(
             match texcoord_index_map.get(&vert.vt) {
                 Some(&index) => mesh.texcoord_indices.push(index as _),
                 None => {
-                    let vt = vert.vt as usize;
+                    let vt = vert.vt;
 
                     if vt * 2 + 1 >= texcoord.len() {
                         return Err(LoadError::FaceTexCoordOutOfBounds);
@@ -1098,7 +1080,7 @@ fn add_vertex_multi_index(
             match normal_index_map.get(&vert.vn) {
                 Some(&index) => normal_indices.push(index as _),
                 None => {
-                    let vn = vert.vn as usize;
+                    let vn = vert.vn;
 
                     if vn * 3 + 2 >= normal.len() {
                         return Err(LoadError::FaceNormalOutOfBounds);
@@ -1582,7 +1564,7 @@ where
             mat_path.to_owned()
         };
 
-        self::load_mtl(&full_path)
+        self::load_mtl(full_path)
     })
 }
 
@@ -1762,7 +1744,7 @@ where
                     ));
                     tmp_faces.clear();
                 }
-                let size = line.chars().nth(0).unwrap().len_utf8();
+                let size = line.chars().next().unwrap().len_utf8();
                 name = line[size..].trim().to_owned();
                 if name.is_empty() {
                     name = "unnamed_object".to_owned();
@@ -1791,7 +1773,7 @@ where
                 }
             }
             Some("usemtl") => {
-                let mat_name = line.split_once(" ").unwrap_or_default().1.trim().to_owned();
+                let mat_name = line.split_once(' ').unwrap_or_default().1.trim().to_owned();
 
                 if !mat_name.is_empty() {
                     let new_mat = mat_map.get(&mat_name).cloned();
@@ -2039,10 +2021,8 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///     cornell_box_obj.push("obj/cornell_box.obj");
 ///     let mut cornell_box_file = BufReader::new(File::open(cornell_box_obj.as_path()).unwrap());
 ///
-///     let m = tobj::load_obj_buf_async(
-///         &mut cornell_box_file,
-///         &tobj::GPU_LOAD_OPTIONS,
-///         move |p| {
+///     let m =
+///         tobj::load_obj_buf_async(&mut cornell_box_file, &tobj::GPU_LOAD_OPTIONS, move |p| {
 ///             let dir_clone = dir.clone();
 ///             async move {
 ///                 let mut cornell_box_mtl1 = dir_clone.clone();
@@ -2063,9 +2043,8 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///                     _ => unreachable!(),
 ///                 }
 ///             }
-///         },
-///     )
-///     .await;
+///         })
+///         .await;
 /// };
 /// ```
 pub async fn load_obj_buf_async<B, ML, MLFut>(
