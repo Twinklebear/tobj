@@ -1,7 +1,7 @@
 [package]
 name = "tobj"
 version = "3.2.5"
-edition = "2018"
+edition = "2021"
 authors = ["Will Usher <will@willusher.io>", "Moritz Moeller <virtualritz@protonmail.com>"]
 description = "A lightweight OBJ loader in the spirit of tinyobjloader"
 homepage = "https://github.com/Twinklebear/tobj"
