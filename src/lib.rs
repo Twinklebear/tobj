@@ -765,8 +765,12 @@ fn parse_float3(val_str: SplitWhitespace) -> Result<[Float; 3], LoadError> {
 }
 
 /// Parse the a string into a float value, returns an error if parsing failed
-fn parse_float(val_str: &str) -> Result<Float, LoadError> {
-    FromStr::from_str(val_str).map_err(|_| LoadError::MaterialParseError)
+fn parse_float(val_str: Option<&str>) -> Result<Float, LoadError> {
+    val_str
+        .map(FromStr::from_str)
+        .map_or(Err(LoadError::MaterialParseError), |v| {
+            v.map_err(|_| LoadError::MaterialParseError)
+        })
 }
 
 /// Parse vertex indices for a face and append it to the list of faces passed.
@@ -1872,36 +1876,12 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     return Err(LoadError::InvalidObjectName);
                 }
             }
-            Some("Ka") => {
-                cur_mat.ambient = Some(parse_float3(words)?);
-            }
-            Some("Kd") => {
-                cur_mat.diffuse = Some(parse_float3(words)?);
-            }
-            Some("Ks") => {
-                cur_mat.specular = Some(parse_float3(words)?);
-            }
-            Some("Ns") => {
-                if let Some(p) = words.next() {
-                    cur_mat.shininess = Some(parse_float(p)?);
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("Ni") => {
-                if let Some(p) = words.next() {
-                    cur_mat.optical_density = Some(parse_float(p)?);
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("d") => {
-                if let Some(p) = words.next() {
-                    cur_mat.dissolve = Some(parse_float(p)?);
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
+            Some("Ka") => cur_mat.ambient = Some(parse_float3(words)?),
+            Some("Kd") => cur_mat.diffuse = Some(parse_float3(words)?),
+            Some("Ks") => cur_mat.specular = Some(parse_float3(words)?),
+            Some("Ns") => cur_mat.shininess = Some(parse_float(words.next())?),
+            Some("Ni") => cur_mat.optical_density = Some(parse_float(words.next())?),
+            Some("d") => cur_mat.dissolve = Some(parse_float(words.next())?),
             Some("map_Ka") => match line.get(6..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
                 Some(tex) => cur_mat.ambient_texture = Some(tex.to_owned()),
