@@ -389,9 +389,9 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify white material loaded properly
     assert_eq!(mats[0].name, "white");
     let mat = &mats[0];
-    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.diffuse, [1.0, 1.0, 1.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.ambient.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse.unwrap(), [1.0, 1.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(
         mat.unknown_param.get("Ke").map(|s| s.as_ref()),
         Some("1 1 1")
@@ -401,27 +401,42 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify red material loaded properly
     assert_eq!(mats[1].name, "red");
     let mat = &mats[1];
-    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.diffuse, [1.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.ambient.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse.unwrap(), [1.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_eq!(mat.illumination_model, Some(2));
-    assert_eq!(mat.ambient_texture, "this ambient texture has spaces.jpg");
-    assert_eq!(mat.diffuse_texture, "this diffuse texture has spaces.jpg");
-    assert_eq!(mat.specular_texture, "this specular texture has spaces.jpg");
-    assert_eq!(mat.normal_texture, "this normal texture has spaces.jpg");
+    assert_eq!(
+        mat.ambient_texture,
+        Some("this ambient texture has spaces.jpg".to_owned())
+    );
+    assert_eq!(
+        mat.diffuse_texture,
+        Some("this diffuse texture has spaces.jpg".to_owned())
+    );
+    assert_eq!(
+        mat.specular_texture,
+        Some("this specular texture has spaces.jpg".to_owned())
+    );
+    assert_eq!(
+        mat.normal_texture,
+        Some("this normal texture has spaces.jpg".to_owned())
+    );
     assert_eq!(
         mat.shininess_texture,
-        "this shininess texture has spaces.jpg"
+        Some("this shininess texture has spaces.jpg".to_owned())
     );
-    assert_eq!(mat.dissolve_texture, "this dissolve texture has spaces.jpg");
+    assert_eq!(
+        mat.dissolve_texture,
+        Some("this dissolve texture has spaces.jpg".to_owned())
+    );
 
     // Verify blue material loaded properly
     assert_eq!(mats[2].name, "blue");
     let mat = &mats[2];
-    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.diffuse, [0.0, 0.0, 1.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_eq!(mat.shininess, 10.0);
+    assert_float_eq!(mat.ambient.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse.unwrap(), [0.0, 0.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_eq!(mat.shininess, Some(10.0));
     assert_eq!(mat.unknown_param.len(), 1);
     assert_eq!(
         mat.unknown_param.get("crazy_unknown"),
@@ -431,24 +446,24 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify light material loaded properly
     assert_eq!(mats[3].name, "light");
     let mat = &mats[3];
-    assert_float_eq!(mat.ambient, [20.0, 20.0, 20.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.diffuse, [1.0, 1.0, 1.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_eq!(mat.dissolve, 0.8);
-    assert_eq!(mat.optical_density, 1.25);
+    assert_float_eq!(mat.ambient.unwrap(), [20.0, 20.0, 20.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse.unwrap(), [1.0, 1.0, 1.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_eq!(mat.dissolve, Some(0.8));
+    assert_eq!(mat.optical_density, Some(1.25));
 
     // Verify green material loaded properly
     assert_eq!(mats[4].name, "green");
     let mat = &mats[4];
-    assert_float_eq!(mat.ambient, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.diffuse, [0.0, 1.0, 0.0], r2nd_all <= TOL);
-    assert_float_eq!(mat.specular, [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_eq!(mat.ambient_texture, "dummy_texture.png");
-    assert_eq!(mat.diffuse_texture, "dummy_texture.png");
-    assert_eq!(mat.specular_texture, "dummy_texture.png");
-    assert_eq!(mat.normal_texture, "dummy_texture.png");
-    assert_eq!(mat.shininess_texture, "dummy_texture.png");
-    assert_eq!(mat.dissolve_texture, "dummy_texture.png");
+    assert_float_eq!(mat.ambient.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.diffuse.unwrap(), [0.0, 1.0, 0.0], r2nd_all <= TOL);
+    assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
+    assert_eq!(mat.ambient_texture, Some("dummy_texture.png".to_owned()));
+    assert_eq!(mat.diffuse_texture, Some("dummy_texture.png".to_owned()));
+    assert_eq!(mat.specular_texture, Some("dummy_texture.png".to_owned()));
+    assert_eq!(mat.normal_texture, Some("dummy_texture.png".to_owned()));
+    assert_eq!(mat.shininess_texture, Some("dummy_texture.png".to_owned()));
+    assert_eq!(mat.dissolve_texture, Some("dummy_texture.png".to_owned()));
 }
 
 #[test]

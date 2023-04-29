@@ -114,26 +114,48 @@
 //!
 //! for (i, m) in materials.iter().enumerate() {
 //!     println!("material[{}].name = \'{}\'", i, m.name);
-//!     println!(
-//!         "    material.Ka = ({}, {}, {})",
-//!         m.ambient[0], m.ambient[1], m.ambient[2]
-//!     );
-//!     println!(
-//!         "    material.Kd = ({}, {}, {})",
-//!         m.diffuse[0], m.diffuse[1], m.diffuse[2]
-//!     );
-//!     println!(
-//!         "    material.Ks = ({}, {}, {})",
-//!         m.specular[0], m.specular[1], m.specular[2]
-//!     );
-//!     println!("    material.Ns = {}", m.shininess);
-//!     println!("    material.d = {}", m.dissolve);
-//!     println!("    material.map_Ka = {}", m.ambient_texture);
-//!     println!("    material.map_Kd = {}", m.diffuse_texture);
-//!     println!("    material.map_Ks = {}", m.specular_texture);
-//!     println!("    material.map_Ns = {}", m.shininess_texture);
-//!     println!("    material.map_Bump = {}", m.normal_texture);
-//!     println!("    material.map_d = {}", m.dissolve_texture);
+//!     if let Some(ambient) = m.ambient {
+//!         println!(
+//!             "    material.Ka = ({}, {}, {})",
+//!             ambient[0], ambient[1], ambient[2]
+//!         );
+//!     }
+//!     if let Some(diffuse) = m.diffuse {
+//!         println!(
+//!             "    material.Kd = ({}, {}, {})",
+//!             diffuse[0], diffuse[1], diffuse[2]
+//!         );
+//!     }
+//!     if let Some(specular) = m.specular {
+//!         println!(
+//!             "    material.Ks = ({}, {}, {})",
+//!             specular[0], specular[1], specular[2]
+//!         );
+//!     }
+//!     if let Some(shininess) = m.shininess {
+//!         println!("    material.Ns = {}", shininess);
+//!     }
+//!     if let Some(dissolve) = m.dissolve {
+//!         println!("    material.d = {}", dissolve);
+//!     }
+//!     if let Some(ambient_texture) = &m.ambient_texture {
+//!         println!("    material.map_Ka = {}", ambient_texture);
+//!     }
+//!     if let Some(diffuse_texture) = &m.diffuse_texture {
+//!         println!("    material.map_Kd = {}", diffuse_texture);
+//!     }
+//!     if let Some(specular_texture) = &m.specular_texture {
+//!         println!("    material.map_Ks = {}", specular_texture);
+//!     }
+//!     if let Some(shininess_texture) = &m.shininess_texture {
+//!         println!("    material.map_Ns = {}", shininess_texture);
+//!     }
+//!     if let Some(normal_texture) = &m.normal_texture {
+//!         println!("    material.map_Bump = {}", normal_texture);
+//!     }
+//!     if let Some(dissolve_texture) = &m.dissolve_texture {
+//!         println!("    material.map_d = {}", dissolve_texture);
+//!     }
 //!
 //!     for (k, v) in &m.unknown_param {
 //!         println!("    material.{} = {}", k, v);
@@ -308,7 +330,7 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
 ///     let texcoord = [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]];
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Mesh {
     /// Flattened 3 component floating point vectors, storing positions of
     /// vertices in the mesh.
@@ -366,25 +388,6 @@ pub struct Mesh {
     /// Optional material id associated with this mesh. The material id indexes
     /// into the Vec of Materials loaded from the associated `MTL` file
     pub material_id: Option<usize>,
-}
-
-impl Default for Mesh {
-    /// Create a new, empty mesh.
-    fn default() -> Self {
-        Self {
-            positions: Vec::new(),
-            vertex_color: Vec::new(),
-            normals: Vec::new(),
-            texcoords: Vec::new(),
-            indices: Vec::new(),
-            face_arities: Vec::new(),
-            #[cfg(feature = "merging")]
-            vertex_color_indices: Vec::new(),
-            normal_indices: Vec::new(),
-            texcoord_indices: Vec::new(),
-            material_id: None,
-        }
-    }
 }
 
 /// Options for processing the mesh during loading.
@@ -567,68 +570,46 @@ impl Model {
 /// the value set for it.
 ///
 /// No path is pre-pended to the texture file names specified in the `MTL` file.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Material {
     /// Material name as specified in the `MTL` file.
     pub name: String,
     /// Ambient color of the material.
-    pub ambient: [Float; 3],
+    pub ambient: Option<[Float; 3]>,
     /// Diffuse color of the material.
-    pub diffuse: [Float; 3],
+    pub diffuse: Option<[Float; 3]>,
     /// Specular color of the material.
-    pub specular: [Float; 3],
+    pub specular: Option<[Float; 3]>,
     /// Material shininess attribute. Also called `glossiness`.
-    pub shininess: Float,
+    pub shininess: Option<Float>,
     /// Dissolve attribute is the alpha term for the material. Referred to as
     /// dissolve since that's what the `MTL` file format docs refer to it as.
-    pub dissolve: Float,
+    pub dissolve: Option<Float>,
     /// Optical density also known as index of refraction. Called
     /// `optical_density` in the `MTL` specc. Takes on a value between 0.001
     /// and 10.0. 1.0 means light does not bend as it passes through
     /// the object.
-    pub optical_density: Float,
+    pub optical_density: Option<Float>,
     /// Name of the ambient texture file for the material.
-    pub ambient_texture: String,
+    pub ambient_texture: Option<String>,
     /// Name of the diffuse texture file for the material.
-    pub diffuse_texture: String,
+    pub diffuse_texture: Option<String>,
     /// Name of the specular texture file for the material.
-    pub specular_texture: String,
+    pub specular_texture: Option<String>,
     /// Name of the normal map texture file for the material.
-    pub normal_texture: String,
+    pub normal_texture: Option<String>,
     /// Name of the shininess map texture file for the material.
-    pub shininess_texture: String,
+    pub shininess_texture: Option<String>,
     /// Name of the alpha/opacity map texture file for the material.
     ///
     /// Referred to as `dissolve` to match the `MTL` file format specification.
-    pub dissolve_texture: String,
+    pub dissolve_texture: Option<String>,
     /// The illumnination model to use for this material. The different
-    /// illumnination models are specified in the [`MTL` spec](http://paulbourke.net/dataformats/mtl/).
+    /// illumination models are specified in the [`MTL` spec](http://paulbourke.net/dataformats/mtl/).
     pub illumination_model: Option<u8>,
     /// Key value pairs of any unrecognized parameters encountered while parsing
     /// the material.
     pub unknown_param: HashMap<String, String>,
-}
-
-impl Default for Material {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            ambient: [0.0; 3],
-            diffuse: [0.0; 3],
-            specular: [0.0; 3],
-            shininess: 0.0,
-            dissolve: 1.0,
-            optical_density: 1.0,
-            ambient_texture: String::new(),
-            diffuse_texture: String::new(),
-            specular_texture: String::new(),
-            normal_texture: String::new(),
-            shininess_texture: String::new(),
-            dissolve_texture: String::new(),
-            illumination_model: None,
-            unknown_param: HashMap::new(),
-        }
-    }
 }
 
 /// Possible errors that may occur while loading `OBJ` and `MTL` files.
@@ -771,15 +752,25 @@ fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<Float>, n: usize) 
     sz + n == vals.len()
 }
 
-/// Parse the float3 into the array passed, returns false if parsing failed
-fn parse_float3(val_str: SplitWhitespace, vals: &mut [Float; 3]) -> bool {
-    for (i, p) in val_str.enumerate().take(3) {
-        match FromStr::from_str(p) {
-            Ok(x) => vals[i] = x,
-            Err(_) => return false,
-        }
-    }
-    true
+/// Parse the a string into a float3 array, returns an error if parsing failed
+fn parse_float3(val_str: SplitWhitespace) -> Result<[Float; 3], LoadError> {
+    let arr: [Float; 3] = val_str
+        .take(3)
+        .map(FromStr::from_str)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| LoadError::MaterialParseError)?
+        .try_into()
+        .unwrap();
+    Ok(arr)
+}
+
+/// Parse the a string into a float value, returns an error if parsing failed
+fn parse_float(val_str: Option<&str>) -> Result<Float, LoadError> {
+    val_str
+        .map(FromStr::from_str)
+        .map_or(Err(LoadError::MaterialParseError), |v| {
+            v.map_err(|_| LoadError::MaterialParseError)
+        })
 }
 
 /// Parse vertex indices for a face and append it to the list of faces passed.
@@ -1885,80 +1876,41 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
                     return Err(LoadError::InvalidObjectName);
                 }
             }
-            Some("Ka") => {
-                if !parse_float3(words, &mut cur_mat.ambient) {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("Kd") => {
-                if !parse_float3(words, &mut cur_mat.diffuse) {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("Ks") => {
-                if !parse_float3(words, &mut cur_mat.specular) {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("Ns") => {
-                if let Some(p) = words.next() {
-                    match FromStr::from_str(p) {
-                        Ok(x) => cur_mat.shininess = x,
-                        Err(_) => return Err(LoadError::MaterialParseError),
-                    }
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("Ni") => {
-                if let Some(p) = words.next() {
-                    match FromStr::from_str(p) {
-                        Ok(x) => cur_mat.optical_density = x,
-                        Err(_) => return Err(LoadError::MaterialParseError),
-                    }
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("d") => {
-                if let Some(p) = words.next() {
-                    match FromStr::from_str(p) {
-                        Ok(x) => cur_mat.dissolve = x,
-                        Err(_) => return Err(LoadError::MaterialParseError),
-                    }
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
+            Some("Ka") => cur_mat.ambient = Some(parse_float3(words)?),
+            Some("Kd") => cur_mat.diffuse = Some(parse_float3(words)?),
+            Some("Ks") => cur_mat.specular = Some(parse_float3(words)?),
+            Some("Ns") => cur_mat.shininess = Some(parse_float(words.next())?),
+            Some("Ni") => cur_mat.optical_density = Some(parse_float(words.next())?),
+            Some("d") => cur_mat.dissolve = Some(parse_float(words.next())?),
             Some("map_Ka") => match line.get(6..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.ambient_texture = tex.to_owned(),
+                Some(tex) => cur_mat.ambient_texture = Some(tex.to_owned()),
             },
             Some("map_Kd") => match line.get(6..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.diffuse_texture = tex.to_owned(),
+                Some(tex) => cur_mat.diffuse_texture = Some(tex.to_owned()),
             },
             Some("map_Ks") => match line.get(6..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.specular_texture = tex.to_owned(),
+                Some(tex) => cur_mat.specular_texture = Some(tex.to_owned()),
             },
             Some("map_Bump") | Some("map_bump") => match line.get(8..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.normal_texture = tex.to_owned(),
+                Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
             },
             Some("map_Ns") | Some("map_ns") | Some("map_NS") => {
                 match line.get(6..).map(str::trim) {
                     Some("") | None => return Err(LoadError::MaterialParseError),
-                    Some(tex) => cur_mat.shininess_texture = tex.to_owned(),
+                    Some(tex) => cur_mat.shininess_texture = Some(tex.to_owned()),
                 }
             }
             Some("bump") => match line.get(4..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.normal_texture = tex.to_owned(),
+                Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
             },
             Some("map_d") => match line.get(5..).map(str::trim) {
                 Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.dissolve_texture = tex.to_owned(),
+                Some(tex) => cur_mat.dissolve_texture = Some(tex.to_owned()),
             },
             Some("illum") => {
                 if let Some(p) = words.next() {

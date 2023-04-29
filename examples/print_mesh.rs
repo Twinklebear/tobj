@@ -72,26 +72,48 @@ fn main() {
 
     for (i, m) in materials.iter().enumerate() {
         println!("material[{}].name = \'{}\'", i, m.name);
-        println!(
-            "    material.Ka = ({}, {}, {})",
-            m.ambient[0], m.ambient[1], m.ambient[2]
-        );
-        println!(
-            "    material.Kd = ({}, {}, {})",
-            m.diffuse[0], m.diffuse[1], m.diffuse[2]
-        );
-        println!(
-            "    material.Ks = ({}, {}, {})",
-            m.specular[0], m.specular[1], m.specular[2]
-        );
-        println!("    material.Ns = {}", m.shininess);
-        println!("    material.d = {}", m.dissolve);
-        println!("    material.map_Ka = {}", m.ambient_texture);
-        println!("    material.map_Kd = {}", m.diffuse_texture);
-        println!("    material.map_Ks = {}", m.specular_texture);
-        println!("    material.map_Ns = {}", m.shininess_texture);
-        println!("    material.map_Bump = {}", m.normal_texture);
-        println!("    material.map_d = {}", m.dissolve_texture);
+        if let Some(ambient) = m.ambient {
+            println!(
+                "    material.Ka = ({}, {}, {})",
+                ambient[0], ambient[1], ambient[2]
+            );
+        }
+        if let Some(diffuse) = m.diffuse {
+            println!(
+                "    material.Kd = ({}, {}, {})",
+                diffuse[0], diffuse[1], diffuse[2]
+            );
+        }
+        if let Some(specular) = m.specular {
+            println!(
+                "    material.Ks = ({}, {}, {})",
+                specular[0], specular[1], specular[2]
+            );
+        }
+        if let Some(shininess) = m.shininess {
+            println!("    material.Ns = {}", shininess);
+        }
+        if let Some(dissolve) = m.dissolve {
+            println!("    material.d = {}", dissolve);
+        }
+        if let Some(ambient_texture) = &m.ambient_texture {
+            println!("    material.map_Ka = {}", ambient_texture);
+        }
+        if let Some(diffuse_texture) = &m.diffuse_texture {
+            println!("    material.map_Kd = {}", diffuse_texture);
+        }
+        if let Some(specular_texture) = &m.specular_texture {
+            println!("    material.map_Ks = {}", specular_texture);
+        }
+        if let Some(shininess_texture) = &m.shininess_texture {
+            println!("    material.map_Ns = {}", shininess_texture);
+        }
+        if let Some(normal_texture) = &m.normal_texture {
+            println!("    material.map_Bump = {}", normal_texture);
+        }
+        if let Some(dissolve_texture) = &m.dissolve_texture {
+            println!("    material.map_d = {}", dissolve_texture);
+        }
 
         for (k, v) in &m.unknown_param {
             println!("    material.{} = {}", k, v);
