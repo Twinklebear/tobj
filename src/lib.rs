@@ -388,6 +388,12 @@ pub struct Mesh {
     /// Optional material id associated with this mesh. The material id indexes
     /// into the Vec of Materials loaded from the associated `MTL` file
     pub material_id: Option<usize>,
+    /// Faces from the obj file are reindexed when reading them
+    /// For example if the first two faces are [4,2,6] and [4,3,7]
+    /// they will be stored inside the mesh.indices as [0,1,2] and [0,2,3]
+    /// To obtain back the original index we use this face_reindex which maps from final_index->original_index
+    /// Therefore faces_original_index[0]=4 and faces_original_index[1]=2
+    pub faces_original_index: Vec<u32>,
 }
 
 /// Options for processing the mesh during loading.
@@ -954,6 +960,28 @@ fn export_faces(
         // This is a triangle-only mesh.
         mesh.face_arities = Vec::new();
     }
+
+    //store inside the mesh the faces_original_index
+    let mut max_final_idx = 0;
+    for (original_indidces, final_index) in index_map.iter() {
+        if (final_index > &max_final_idx) {
+            max_final_idx = *final_index;
+        }
+    }
+    mesh.faces_original_index
+        .resize(max_final_idx as usize + 1, 0);
+    for (original_indidces, final_index) in index_map {
+        if (mesh.faces_original_index[final_index as usize] != 0) {
+            let old = mesh.faces_original_index[final_index as usize];
+            assert!(
+                original_indidces.v as u32 == old,
+                "Something is wrong when creating the face_orignal_index"
+            );
+        }
+        mesh.faces_original_index[final_index as usize] = original_indidces.v as u32;
+    }
+    // println!("max final idx is {}", max_final_idx);
+    // println!("mesh.indices.len() {}", mesh.indices.len());
 
     Ok(mesh)
 }
