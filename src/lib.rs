@@ -931,7 +931,7 @@ fn export_faces(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let a = indices.first().ok_or(LoadError::InvalidPolygon)?;
                     let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
@@ -1327,7 +1327,7 @@ fn export_faces_multi_index(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let a = indices.first().ok_or(LoadError::InvalidPolygon)?;
                     let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex_multi_index(
