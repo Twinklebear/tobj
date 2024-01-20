@@ -7,9 +7,9 @@ use std::{
 
 use crate as tobj;
 
-const CORNELL_BOX_OBJ: &'static str = include_str!("../obj/cornell_box.obj");
-const CORNELL_BOX_MTL1: &'static str = include_str!("../obj/cornell_box.mtl");
-const CORNELL_BOX_MTL2: &'static str = include_str!("../obj/cornell_box2.mtl");
+const CORNELL_BOX_OBJ: &str = include_str!("../obj/cornell_box.obj");
+const CORNELL_BOX_MTL1: &str = include_str!("../obj/cornell_box.mtl");
+const CORNELL_BOX_MTL2: &str = include_str!("../obj/cornell_box2.mtl");
 
 // Set the tolerance for float comparison
 use crate::Float;
@@ -271,6 +271,7 @@ fn multiple_face_formats() {
     assert!(tri.texcoords.is_empty());
 }
 
+#[allow(clippy::excessive_precision)]
 fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     // Verify the floor loaded properly
     assert_eq!(models[0].name, "floor");
