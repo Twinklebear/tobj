@@ -1742,7 +1742,8 @@ where
                 }
             }
             Some("mtllib") => {
-                if let Some(mtllib) = words.next() {
+                // File name can include spaces so we cannot rely on a SplitWhitespace iterator
+                if let Some(mtllib) = line.split_once(' ').unwrap_or_default().1.trim() {
                     let mat_file = Path::new(mtllib).to_path_buf();
                     match material_loader(mat_file.as_path()) {
                         Ok((mut mats, map)) => {
