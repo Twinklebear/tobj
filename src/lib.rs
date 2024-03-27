@@ -1742,25 +1742,23 @@ where
                 }
             }
             Some("mtllib") => {
-                if let Some(mtllib) = words.next() {
-                    let mat_file = Path::new(mtllib).to_path_buf();
-                    match material_loader(mat_file.as_path()) {
-                        Ok((mut mats, map)) => {
-                            // Merge the loaded material lib with any currently loaded ones,
-                            // offsetting the indices of the appended
-                            // materials by our current length
-                            let mat_offset = materials.len();
-                            materials.append(&mut mats);
-                            for m in map {
-                                mat_map.insert(m.0, m.1 + mat_offset);
-                            }
-                        }
-                        Err(e) => {
-                            mtlresult = Err(e);
+                // File name can include spaces so we cannot rely on a SplitWhitespace iterator
+                let mtllib = line.split_once(' ').unwrap_or_default().1.trim();
+                let mat_file = Path::new(mtllib).to_path_buf();
+                match material_loader(mat_file.as_path()) {
+                    Ok((mut mats, map)) => {
+                        // Merge the loaded material lib with any currently loaded ones,
+                        // offsetting the indices of the appended
+                        // materials by our current length
+                        let mat_offset = materials.len();
+                        materials.append(&mut mats);
+                        for m in map {
+                            mat_map.insert(m.0, m.1 + mat_offset);
                         }
                     }
-                } else {
-                    return Err(LoadError::MaterialParseError);
+                    Err(e) => {
+                        mtlresult = Err(e);
+                    }
                 }
             }
             Some("usemtl") => {
