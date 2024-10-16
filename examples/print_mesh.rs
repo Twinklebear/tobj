@@ -1,11 +1,10 @@
 fn main() {
     let obj_file = std::env::args()
-        .skip(1)
-        .next()
+        .nth(1)
         .expect("A .obj file to print is required");
 
     let (models, materials) =
-        tobj::load_obj(&obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
+        tobj::load_obj(obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
 
     // Note: If you don't mind missing the materials, you can generate a default.
     let materials = materials.expect("Failed to load MTL file");
@@ -15,7 +14,7 @@ fn main() {
 
     for (i, m) in models.iter().enumerate() {
         let mesh = &m.mesh;
-        println!("");
+        println!();
         println!("model[{}].name             = \'{}\'", i, m.name);
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 

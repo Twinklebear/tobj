@@ -937,7 +937,7 @@ fn export_faces(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let a = indices.first().ok_or(LoadError::InvalidPolygon)?;
                     let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
@@ -1355,7 +1355,7 @@ fn export_faces_multi_index(
             }
             Face::Polygon(ref indices) => {
                 if load_options.triangulate {
-                    let a = indices.get(0).ok_or(LoadError::InvalidPolygon)?;
+                    let a = indices.first().ok_or(LoadError::InvalidPolygon)?;
                     let mut b = indices.get(1).ok_or(LoadError::InvalidPolygon)?;
                     for c in indices.iter().skip(2) {
                         add_vertex_multi_index(
@@ -1770,25 +1770,23 @@ where
                 }
             }
             Some("mtllib") => {
-                if let Some(mtllib) = words.next() {
-                    let mat_file = Path::new(mtllib).to_path_buf();
-                    match material_loader(mat_file.as_path()) {
-                        Ok((mut mats, map)) => {
-                            // Merge the loaded material lib with any currently loaded ones,
-                            // offsetting the indices of the appended
-                            // materials by our current length
-                            let mat_offset = materials.len();
-                            materials.append(&mut mats);
-                            for m in map {
-                                mat_map.insert(m.0, m.1 + mat_offset);
-                            }
-                        }
-                        Err(e) => {
-                            mtlresult = Err(e);
+                // File name can include spaces so we cannot rely on a SplitWhitespace iterator
+                let mtllib = line.split_once(' ').unwrap_or_default().1.trim();
+                let mat_file = Path::new(mtllib).to_path_buf();
+                match material_loader(mat_file.as_path()) {
+                    Ok((mut mats, map)) => {
+                        // Merge the loaded material lib with any currently loaded ones,
+                        // offsetting the indices of the appended
+                        // materials by our current length
+                        let mat_offset = materials.len();
+                        materials.append(&mut mats);
+                        for m in map {
+                            mat_map.insert(m.0, m.1 + mat_offset);
                         }
                     }
-                } else {
-                    return Err(LoadError::MaterialParseError);
+                    Err(e) => {
+                        mtlresult = Err(e);
+                    }
                 }
             }
             Some("usemtl") => {
