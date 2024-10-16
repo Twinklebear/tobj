@@ -980,8 +980,6 @@ fn export_faces(
 
         mesh.faces_original_index[final_index] = original_indidces.v as u32;
     }
-    println!("max final idx is {}", max_final_idx);
-    println!("mesh.indices.len() {}", mesh.indices.len());
 
     Ok(mesh)
 }
