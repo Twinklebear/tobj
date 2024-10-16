@@ -964,21 +964,23 @@ fn export_faces(
     //store inside the mesh the faces_original_index
     let max_final_idx = index_map.values().copied().max().unwrap_or(0) as usize;
 
-    mesh.faces_original_index.resize(max_final_idx + 1, 0);
-    for (original_indidces, final_index) in index_map {
-        let final_index = final_index as usize;
+    if max_final_idx != 0 {
+        mesh.faces_original_index.resize(max_final_idx + 1, 0);
+        for (original_indidces, final_index) in index_map {
+            let final_index = final_index as usize;
 
-        //sanity check that the index we are going to write is the same as the one that was written by a different face
-        if mesh.faces_original_index[final_index] != 0 {
-            //we already have a original index associated with this one but we make sure it's the same
-            let old = mesh.faces_original_index[final_index];
-            assert!(
+            //sanity check that the index we are going to write is the same as the one that was written by a different face
+            if mesh.faces_original_index[final_index] != 0 {
+                //we already have a original index associated with this one but we make sure it's the same
+                let old = mesh.faces_original_index[final_index];
+                assert!(
                 original_indidces.v as u32 == old,
                 "Something is wrong when creating the face_orignal_index. The old index doesn't correspond to the new one."
             );
-        }
+            }
 
-        mesh.faces_original_index[final_index] = original_indidces.v as u32;
+            mesh.faces_original_index[final_index] = original_indidces.v as u32;
+        }
     }
 
     Ok(mesh)
