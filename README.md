@@ -84,6 +84,11 @@ parameter and its value.
   [`AsyncRead`](https://docs.rs/futures-io/latest/futures_io/trait.AsyncRead.html)
   traits.
 
+* `tokio` - Adds support for async loading of objs and materials using
+  [tokio](https://crates.io/crates/tokio)
+  ['AsyncRead`](https://docs.rs/tokio/latest/tokio/io/trait.AsyncRead.html)
+  traits.
+
 ## Documentation
 
 Rust docs can be found [here](https://docs.rs/tobj/).

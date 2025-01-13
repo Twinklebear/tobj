@@ -218,6 +218,10 @@
 //!   using [futures](https://crates.io/crates/futures) [AsyncRead](futures_lite::AsyncRead)
 //!   traits.
 //!
+//! * [`tokio`](tokio) - Adds support for async loading of objs and materials
+//!   using [tokio](https://crates.io/crates/tokio) [AsyncRead](::tokio::io::AsyncRead)
+//!   traits.
+//!
 //! * ['use_f64'] - Uses double-precision (f64) instead of single-precision
 //!   (f32) floating point types
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
@@ -2227,6 +2231,145 @@ pub mod futures {
         pin!(reader);
         let mut lines = reader.lines();
         while let Some(line) = lines.next().await {
+            cur_mat = parse_mtl_line(line, &mut materials, cur_mat)?;
+        }
+
+        // Finalize the last material we were parsing
+        if !cur_mat.name.is_empty() {
+            materials.push(cur_mat);
+        }
+
+        materials.into_mtl_load_result()
+    }
+}
+
+/// Optional module supporting async loading with `tokio` traits.
+///
+/// The functions in this module are drop-in replacements for the standard non-async functions in
+/// this crate, but tailored to use [tokio](https://crates.io/crates/tokio)
+/// [AsyncRead](::tokio::io::AsyncRead) traits.
+#[cfg(feature = "tokio")]
+pub mod tokio {
+    use super::*;
+
+    use ::tokio::fs::File;
+    use ::tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+    use ::tokio::pin;
+
+    /// Load the various objects specified in the `OBJ` file and any associated `MTL` file.
+    ///
+    /// This functions exactly like [crate::load_obj()] but uses async filesystem logic. See
+    /// [crate::load_obj()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_obj<P>(file_name: P, load_options: &LoadOptions) -> LoadResult
+    where
+        P: AsRef<Path> + fmt::Debug,
+    {
+        let file = match File::open(file_name.as_ref()).await {
+            Ok(f) => f,
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_obj - failed to open {:?} due to {}", file_name, _e);
+                return Err(LoadError::OpenFileFailed);
+            }
+        };
+        load_obj_buf(BufReader::new(file), load_options, |mat_path| {
+            // This needs to be "copied" into this closure before moving it into the async one below
+            let file_name: &Path = file_name.as_ref();
+            let file_name = file_name.to_path_buf();
+            async move {
+                let full_path = if let Some(parent) = file_name.parent() {
+                    parent.join(mat_path)
+                } else {
+                    mat_path
+                };
+
+                load_mtl(full_path).await
+            }
+        })
+        .await
+    }
+
+    /// Load the materials defined in a `MTL` file.
+    ///
+    /// This functions exactly like [crate::load_mtl()] but uses async filesystem logic. See
+    /// [crate::load_mtl()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_mtl()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_mtl<P>(file_name: P) -> MTLLoadResult
+    where
+        P: AsRef<Path> + fmt::Debug,
+    {
+        let file = match File::open(file_name.as_ref()).await {
+            Ok(f) => f,
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_mtl - failed to open {:?} due to {}", file_name, _e);
+                return Err(LoadError::OpenFileFailed);
+            }
+        };
+        load_mtl_buf(BufReader::new(file)).await
+    }
+
+    /// Asynchronously load the various meshes in an 'OBJ' buffer.
+    ///
+    /// This functions exactly like [crate::load_obj_buf()], but uses async read traits and an async
+    /// `material_loader` function. See [crate::load_obj_buf()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj_buf()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_obj_buf<B, ML, MLFut>(
+        reader: B,
+        load_options: &LoadOptions,
+        material_loader: ML,
+    ) -> LoadResult
+    where
+        B: AsyncBufRead,
+        ML: Fn(PathBuf) -> MLFut,
+        MLFut: Future<Output = MTLLoadResult>,
+    {
+        if !load_options.is_valid() {
+            return Err(LoadError::InvalidLoadOptionConfig);
+        }
+
+        let mut models = TmpModels::new();
+        let mut materials = TmpMaterials::new();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next_line().await.transpose() {
+            let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
+            match parse_return {
+                ParseReturnType::LoadMaterial(mat_file) => {
+                    materials.merge(material_loader(mat_file).await);
+                }
+                ParseReturnType::None => {}
+            }
+        }
+
+        // For the last object in the file we won't encounter another object name to
+        // tell us when it's done, so if we're parsing an object push the last one
+        // on the list as well
+        models.pop_model(load_options)?;
+
+        Ok((models.into_models(), materials.into_materials()))
+    }
+
+    /// Asynchronously load the various materials in a `MTL` buffer.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_mtl_buf()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_mtl_buf<B: AsyncBufRead>(reader: B) -> MTLLoadResult {
+        let mut materials = TmpMaterials::new();
+        // The current material being parsed
+        let mut cur_mat = Material::default();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next_line().await.transpose() {
             cur_mat = parse_mtl_line(line, &mut materials, cur_mat)?;
         }
 

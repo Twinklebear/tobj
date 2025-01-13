@@ -625,3 +625,57 @@ fn test_invalid_index() {
     let err = m.err().unwrap();
     assert_eq!(err, tobj::LoadError::FaceVertexOutOfBounds);
 }
+
+#[cfg(feature = "tokio")]
+mod tokio {
+    use super::*;
+    use crate::tokio::{load_mtl_buf, load_obj, load_obj_buf};
+    use ::tokio::io::BufReader;
+
+    #[test]
+    fn test_cornell() {
+        let m = tokio_test::block_on(load_obj(
+            "obj/cornell_box.obj",
+            &crate::LoadOptions {
+                triangulate: true,
+                single_index: true,
+                ..Default::default()
+            },
+        ));
+        assert!(m.is_ok());
+        let (models, mats) = m.unwrap();
+        let mats = mats.unwrap();
+        assert_eq!(models.len(), 8);
+        assert_eq!(mats.len(), 5);
+        validate_cornell(models, mats);
+    }
+
+    #[test]
+    fn test_custom_material_loader() {
+        let m = tokio_test::block_on(load_obj_buf(
+            BufReader::new(CORNELL_BOX_OBJ.as_bytes()),
+            &crate::LoadOptions {
+                triangulate: true,
+                single_index: true,
+                ..Default::default()
+            },
+            |p| async move {
+                match p.to_str().unwrap() {
+                    "cornell_box.mtl" => {
+                        load_mtl_buf(BufReader::new(CORNELL_BOX_MTL1.as_bytes())).await
+                    }
+                    "cornell_box2.mtl" => {
+                        load_mtl_buf(BufReader::new(CORNELL_BOX_MTL2.as_bytes())).await
+                    }
+                    _ => unreachable!(),
+                }
+            },
+        ));
+        assert!(m.is_ok());
+        let (models, mats) = m.unwrap();
+        let mats = mats.unwrap();
+        assert_eq!(models.len(), 8);
+        assert_eq!(mats.len(), 5);
+        validate_cornell(models, mats);
+    }
+}
