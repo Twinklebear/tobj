@@ -2106,10 +2106,10 @@ where
             ParseReturnType::LoadMaterial(mat_file) => {
                 match mat_file.into_os_string().into_string() {
                     Ok(mat_file) => materials.merge(material_loader(mat_file).await),
-                    Err(mat_file) => {
+                    Err(_mat_file) => {
                         #[cfg(feature = "log")]
                         log::error!(
-                            "load_obj - material path contains invalid Unicode: {mat_file:?}"
+                            "load_obj - material path contains invalid Unicode: {_mat_file:?}"
                         );
                         return Err(LoadError::ReadError);
                     }
