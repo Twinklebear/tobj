@@ -534,6 +534,43 @@ fn test_async_custom_material_loader() {
     validate_cornell(models, mats);
 }
 
+#[cfg(feature = "futures")]
+mod futures {
+    use super::*;
+    use crate::futures::{load_mtl_buf, load_obj_buf};
+    use futures_lite::future;
+    use futures_lite::io::BufReader;
+
+    #[test]
+    fn test_custom_material_loader() {
+        let m = future::block_on(load_obj_buf(
+            BufReader::new(CORNELL_BOX_OBJ.as_bytes()),
+            &crate::LoadOptions {
+                triangulate: true,
+                single_index: true,
+                ..Default::default()
+            },
+            |p| async move {
+                match p.to_str().unwrap() {
+                    "cornell_box.mtl" => {
+                        load_mtl_buf(BufReader::new(CORNELL_BOX_MTL1.as_bytes())).await
+                    }
+                    "cornell_box2.mtl" => {
+                        load_mtl_buf(BufReader::new(CORNELL_BOX_MTL2.as_bytes())).await
+                    }
+                    _ => unreachable!(),
+                }
+            },
+        ));
+        assert!(m.is_ok());
+        let (models, mats) = m.unwrap();
+        let mats = mats.unwrap();
+        assert_eq!(models.len(), 8);
+        assert_eq!(mats.len(), 5);
+        validate_cornell(models, mats);
+    }
+}
+
 #[test]
 fn test_custom_material_loader_files() {
     let dir = env::current_dir().unwrap();

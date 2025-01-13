@@ -79,6 +79,11 @@ parameter and its value.
    async material loader. Useful in environments that do not support blocking
    IO (e.g. WebAssembly).
 
+* `futures` - Adds support for async loading of objs and materials using
+  [futures](https://crates.io/crates/futures)
+  [`AsyncRead`](https://docs.rs/futures-io/latest/futures_io/trait.AsyncRead.html)
+  traits.
+
 ## Documentation
 
 Rust docs can be found [here](https://docs.rs/tobj/).
