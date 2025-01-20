@@ -8,6 +8,11 @@ Aims to be a simple and lightweight option for loading `OBJ` files.
 
 Just returns two `Vec`s containing loaded models and materials.
 
+Note: These days I recommend you use [glTF](https://www.khronos.org/gltf/) if you control
+the model format coming into your app, since it's binary and will load faster.
+There's a good crate for loading gltf: [gltf-rs](https://github.com/gltf-rs/gltf),
+plus some others that are likely also good.
+
 ## Triangulation
 
 Meshes can be triangulated on the fly or left as-is.
