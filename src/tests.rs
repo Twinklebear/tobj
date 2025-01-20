@@ -511,6 +511,7 @@ fn test_custom_material_loader() {
 #[cfg(feature = "async")]
 #[test]
 fn test_async_custom_material_loader() {
+    #[allow(deprecated)]
     let m = tokio_test::block_on(tobj::load_obj_buf_async(
         &mut Cursor::new(CORNELL_BOX_OBJ),
         &tobj::LoadOptions {

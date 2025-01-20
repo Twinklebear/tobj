@@ -2030,6 +2030,19 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 /// This could e.g. be a text file already in memory, a file loaded
 ///  asynchronously over the network etc.
 ///
+/// <div class="warning">
+///
+/// This function is not fully async, as it does not use async reader objects. This means you
+/// must either use a blocking reader object, which negates the point of async in the first place,
+/// or you must asynchronously read the entire buffer into memory, and then give an in-memory reader
+/// to this function, which is wasteful with memory and not terribly efficient.
+///
+/// Instead, it is recommended to use crate-specific feature flag support to enable support for
+/// various third-party async readers. For example, you can enable the `tokio` feature flag to
+/// use [tokio::load_obj_buf()].
+///
+/// </div>
+///
 /// # Arguments
 ///
 /// You must pass a `material_loader` function, which will return a future
@@ -2083,6 +2096,10 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///         .await;
 /// };
 /// ```
+#[deprecated(
+    since = "4.0.3",
+    note = "load_obj_buf_async is not fully async. Use futures/tokio feature flags instead"
+)]
 pub async fn load_obj_buf_async<B, ML, MLFut>(
     reader: &mut B,
     load_options: &LoadOptions,
