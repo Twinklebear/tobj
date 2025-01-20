@@ -8,7 +8,7 @@ homepage = "https://github.com/Twinklebear/tobj"
 documentation = "https://docs.rs/tobj/"
 repository = "https://github.com/Twinklebear/tobj"
 readme = "README.md"
-categories = ["graphics", "games", "visualization", "rendering::data-formats", "parsing "]
+categories = ["graphics", "games", "visualization", "rendering::data-formats"]
 keywords = ["3d", "obj", "wavefront", "graphics", "parser"]
 license = "MIT"
 
