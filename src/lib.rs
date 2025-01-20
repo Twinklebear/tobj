@@ -214,6 +214,14 @@
 //!   files from a buffer, with an async material loader. Useful in environments
 //!   that do not support blocking IO (e.g. WebAssembly).
 //!
+//! * [`futures`](futures) - Adds support for async loading of objs and materials
+//!   using [futures](https://crates.io/crates/futures) [AsyncRead](futures_lite::AsyncRead)
+//!   traits.
+//!
+//! * [`tokio`](tokio) - Adds support for async loading of objs and materials
+//!   using [tokio](https://crates.io/crates/tokio) [AsyncRead](::tokio::io::AsyncRead)
+//!   traits.
+//!
 //! * ['use_f64'] - Uses double-precision (f64) instead of single-precision
 //!   (f32) floating point types
 #![cfg_attr(feature = "merging", allow(incomplete_features))]
@@ -227,7 +235,7 @@ use std::{
     fmt,
     fs::File,
     io::{prelude::*, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
     str::{FromStr, SplitWhitespace},
 };
 
@@ -1525,6 +1533,335 @@ where
         .for_each(|vertex| *vertex = compressed_indices[*vertex as usize]);
 }
 
+#[derive(Debug)]
+struct TmpModels {
+    models: Vec<Model>,
+    pos: Vec<Float>,
+    v_color: Vec<Float>,
+    texcoord: Vec<Float>,
+    normal: Vec<Float>,
+    faces: Vec<Face>,
+    // name of the current object being parsed
+    name: String,
+    // material used by the current object being parsed
+    mat_id: Option<usize>,
+}
+
+impl Default for TmpModels {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            models: Vec::new(),
+            pos: Vec::new(),
+            v_color: Vec::new(),
+            texcoord: Vec::new(),
+            normal: Vec::new(),
+            faces: Vec::new(),
+            name: "unnamed_object".to_owned(),
+            mat_id: None,
+        }
+    }
+}
+
+impl TmpModels {
+    #[inline]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    #[inline]
+    fn pop_model(&mut self, load_options: &LoadOptions) -> Result<(), LoadError> {
+        self.models.push(Model::new(
+            if load_options.single_index {
+                export_faces(
+                    &self.pos,
+                    &self.v_color,
+                    &self.texcoord,
+                    &self.normal,
+                    &self.faces,
+                    self.mat_id,
+                    load_options,
+                )?
+            } else {
+                export_faces_multi_index(
+                    &self.pos,
+                    &self.v_color,
+                    &self.texcoord,
+                    &self.normal,
+                    &self.faces,
+                    self.mat_id,
+                    load_options,
+                )?
+            },
+            self.name.clone(),
+        ));
+        self.faces.clear();
+        Ok(())
+    }
+
+    #[inline]
+    fn into_models(self) -> Vec<Model> {
+        self.models
+    }
+}
+
+#[derive(Debug)]
+struct TmpMaterials {
+    materials: Vec<Material>,
+    mat_map: HashMap<String, usize>,
+    mtlerr: Option<LoadError>,
+}
+
+impl Default for TmpMaterials {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            materials: Vec::new(),
+            mat_map: HashMap::new(),
+            mtlerr: None,
+        }
+    }
+}
+
+impl TmpMaterials {
+    #[inline]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    #[inline]
+    fn push(&mut self, material: Material) {
+        self.mat_map
+            .insert(material.name.clone(), self.materials.len());
+        self.materials.push(material);
+    }
+
+    #[inline]
+    fn merge(&mut self, mtl_load_result: MTLLoadResult) {
+        match mtl_load_result {
+            Ok((mut mats, map)) => {
+                // Merge the loaded material lib with any currently loaded ones,
+                // offsetting the indices of the appended
+                // materials by our current length
+                let mat_offset = self.materials.len();
+                self.materials.append(&mut mats);
+                for m in map {
+                    self.mat_map.insert(m.0, m.1 + mat_offset);
+                }
+            }
+            Err(e) => {
+                self.mtlerr = Some(e);
+            }
+        }
+    }
+
+    #[inline]
+    fn into_mtl_load_result(self) -> MTLLoadResult {
+        Ok((self.materials, self.mat_map))
+    }
+
+    #[inline]
+    fn into_materials(self) -> Result<Vec<Material>, LoadError> {
+        if !self.materials.is_empty() {
+            Ok(self.materials)
+        } else if let Some(mtlerr) = self.mtlerr {
+            Err(mtlerr)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+}
+
+enum ParseReturnType {
+    LoadMaterial(PathBuf),
+    None,
+}
+
+#[inline]
+fn parse_obj_line(
+    line: std::io::Result<String>,
+    load_options: &LoadOptions,
+    models: &mut TmpModels,
+    materials: &TmpMaterials,
+) -> Result<ParseReturnType, LoadError> {
+    let (line, mut words) = match line {
+        Ok(ref line) => (&line[..], line[..].split_whitespace()),
+        Err(_e) => {
+            #[cfg(feature = "log")]
+            log::error!("load_obj - failed to read line due to {}", _e);
+            return Err(LoadError::ReadError);
+        }
+    };
+    match words.next() {
+        Some("#") | None => Ok(ParseReturnType::None),
+        Some("v") => {
+            if !parse_floatn(&mut words, &mut models.pos, 3) {
+                return Err(LoadError::PositionParseError);
+            }
+
+            // Add inline vertex colors if present.
+            parse_floatn(&mut words, &mut models.v_color, 3);
+            Ok(ParseReturnType::None)
+        }
+        Some("vt") => {
+            if !parse_floatn(&mut words, &mut models.texcoord, 2) {
+                Err(LoadError::TexcoordParseError)
+            } else {
+                Ok(ParseReturnType::None)
+            }
+        }
+        Some("vn") => {
+            if !parse_floatn(&mut words, &mut models.normal, 3) {
+                Err(LoadError::NormalParseError)
+            } else {
+                Ok(ParseReturnType::None)
+            }
+        }
+        Some("f") | Some("l") => {
+            if !parse_face(
+                words,
+                &mut models.faces,
+                models.pos.len() / 3,
+                models.texcoord.len() / 2,
+                models.normal.len() / 3,
+            ) {
+                Err(LoadError::FaceParseError)
+            } else {
+                Ok(ParseReturnType::None)
+            }
+        }
+        // Just treating object and group tags identically. Should there be different behavior
+        // for them?
+        Some("o") | Some("g") => {
+            // If we were already parsing an object then a new object name
+            // signals the end of the current one, so push it onto our list of objects
+            if !models.faces.is_empty() {
+                models.pop_model(load_options)?;
+            }
+            let size = line.chars().next().unwrap().len_utf8();
+            models.name = line[size..].trim().to_owned();
+            if models.name.is_empty() {
+                models.name = "unnamed_object".to_owned();
+            }
+            Ok(ParseReturnType::None)
+        }
+        Some("mtllib") => {
+            // File name can include spaces so we cannot rely on a SplitWhitespace iterator
+            let mtllib = line.split_once(' ').unwrap_or_default().1.trim();
+            let mat_file = Path::new(mtllib).to_path_buf();
+            Ok(ParseReturnType::LoadMaterial(mat_file))
+        }
+        Some("usemtl") => {
+            let mat_name = line.split_once(' ').unwrap_or_default().1.trim().to_owned();
+
+            if !mat_name.is_empty() {
+                let new_mat = materials.mat_map.get(&mat_name).cloned();
+                // As materials are returned per-model, a new material within an object
+                // has to emit a new model with the same name but different material
+                if models.mat_id != new_mat && !models.faces.is_empty() {
+                    models.pop_model(load_options)?;
+                }
+                if new_mat.is_none() {
+                    #[cfg(feature = "log")]
+                    log::warn!(
+                        "Object {} refers to unfound material: {}",
+                        models.name,
+                        mat_name
+                    );
+                }
+                models.mat_id = new_mat;
+                Ok(ParseReturnType::None)
+            } else {
+                Err(LoadError::MaterialParseError)
+            }
+        }
+        // Just ignore unrecognized characters
+        Some(_) => Ok(ParseReturnType::None),
+    }
+}
+
+#[inline]
+fn parse_mtl_line(
+    line: std::io::Result<String>,
+    materials: &mut TmpMaterials,
+    mut cur_mat: Material,
+) -> Result<Material, LoadError> {
+    let (line, mut words) = match line {
+        Ok(ref line) => (line.trim(), line[..].split_whitespace()),
+        Err(_e) => {
+            #[cfg(feature = "log")]
+            log::error!("load_obj - failed to read line due to {}", _e);
+            return Err(LoadError::ReadError);
+        }
+    };
+
+    match words.next() {
+        Some("#") | None => {}
+        Some("newmtl") => {
+            // If we were passing a material save it out to our vector
+            if !cur_mat.name.is_empty() {
+                materials.push(cur_mat);
+            }
+            cur_mat = Material::default();
+            cur_mat.name = line[6..].trim().to_owned();
+            if cur_mat.name.is_empty() {
+                return Err(LoadError::InvalidObjectName);
+            }
+        }
+        Some("Ka") => cur_mat.ambient = Some(parse_float3(words)?),
+        Some("Kd") => cur_mat.diffuse = Some(parse_float3(words)?),
+        Some("Ks") => cur_mat.specular = Some(parse_float3(words)?),
+        Some("Ns") => cur_mat.shininess = Some(parse_float(words.next())?),
+        Some("Ni") => cur_mat.optical_density = Some(parse_float(words.next())?),
+        Some("d") => cur_mat.dissolve = Some(parse_float(words.next())?),
+        Some("map_Ka") => match line.get(6..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.ambient_texture = Some(tex.to_owned()),
+        },
+        Some("map_Kd") => match line.get(6..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.diffuse_texture = Some(tex.to_owned()),
+        },
+        Some("map_Ks") => match line.get(6..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.specular_texture = Some(tex.to_owned()),
+        },
+        Some("map_Bump") | Some("map_bump") => match line.get(8..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
+        },
+        Some("map_Ns") | Some("map_ns") | Some("map_NS") => match line.get(6..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.shininess_texture = Some(tex.to_owned()),
+        },
+        Some("bump") => match line.get(4..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
+        },
+        Some("map_d") => match line.get(5..).map(str::trim) {
+            Some("") | None => return Err(LoadError::MaterialParseError),
+            Some(tex) => cur_mat.dissolve_texture = Some(tex.to_owned()),
+        },
+        Some("illum") => {
+            if let Some(p) = words.next() {
+                match FromStr::from_str(p) {
+                    Ok(x) => cur_mat.illumination_model = Some(x),
+                    Err(_) => return Err(LoadError::MaterialParseError),
+                }
+            } else {
+                return Err(LoadError::MaterialParseError);
+            }
+        }
+        Some(unknown) => {
+            if !unknown.is_empty() {
+                let param = line[unknown.len()..].trim().to_owned();
+                cur_mat.unknown_param.insert(unknown.to_owned(), param);
+            }
+        }
+    }
+    Ok(cur_mat)
+}
+
 /// Load the various objects specified in the `OBJ` file and any associated
 /// `MTL` file.
 ///
@@ -1648,294 +1985,43 @@ where
         return Err(LoadError::InvalidLoadOptionConfig);
     }
 
-    let mut models = Vec::new();
-    let mut materials = Vec::new();
-    let mut mat_map = HashMap::new();
-
-    let mut tmp_pos = Vec::new();
-    let mut tmp_v_color = Vec::new();
-    let mut tmp_texcoord = Vec::new();
-    let mut tmp_normal = Vec::new();
-    let mut tmp_faces: Vec<Face> = Vec::new();
-    // name of the current object being parsed
-    let mut name = "unnamed_object".to_owned();
-    // material used by the current object being parsed
-    let mut mat_id = None;
-    let mut mtlresult = Ok(Vec::new());
+    let mut models = TmpModels::new();
+    let mut materials = TmpMaterials::new();
 
     for line in reader.lines() {
-        let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].split_whitespace()),
-            Err(_e) => {
-                #[cfg(feature = "log")]
-                log::error!("load_obj - failed to read line due to {}", _e);
-                return Err(LoadError::ReadError);
+        let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
+        match parse_return {
+            ParseReturnType::LoadMaterial(mat_file) => {
+                materials.merge(material_loader(mat_file.as_path()));
             }
-        };
-        match words.next() {
-            Some("#") | None => continue,
-            Some("v") => {
-                if !parse_floatn(&mut words, &mut tmp_pos, 3) {
-                    return Err(LoadError::PositionParseError);
-                }
-
-                // Add inline vertex colors if present.
-                parse_floatn(&mut words, &mut tmp_v_color, 3);
-            }
-            Some("vt") => {
-                if !parse_floatn(&mut words, &mut tmp_texcoord, 2) {
-                    return Err(LoadError::TexcoordParseError);
-                }
-            }
-            Some("vn") => {
-                if !parse_floatn(&mut words, &mut tmp_normal, 3) {
-                    return Err(LoadError::NormalParseError);
-                }
-            }
-            Some("f") | Some("l") => {
-                if !parse_face(
-                    words,
-                    &mut tmp_faces,
-                    tmp_pos.len() / 3,
-                    tmp_texcoord.len() / 2,
-                    tmp_normal.len() / 3,
-                ) {
-                    return Err(LoadError::FaceParseError);
-                }
-            }
-            // Just treating object and group tags identically. Should there be different behavior
-            // for them?
-            Some("o") | Some("g") => {
-                // If we were already parsing an object then a new object name
-                // signals the end of the current one, so push it onto our list of objects
-                if !tmp_faces.is_empty() {
-                    models.push(Model::new(
-                        if load_options.single_index {
-                            export_faces(
-                                &tmp_pos,
-                                &tmp_v_color,
-                                &tmp_texcoord,
-                                &tmp_normal,
-                                &tmp_faces,
-                                mat_id,
-                                load_options,
-                            )?
-                        } else {
-                            export_faces_multi_index(
-                                &tmp_pos,
-                                &tmp_v_color,
-                                &tmp_texcoord,
-                                &tmp_normal,
-                                &tmp_faces,
-                                mat_id,
-                                load_options,
-                            )?
-                        },
-                        name,
-                    ));
-                    tmp_faces.clear();
-                }
-                let size = line.chars().next().unwrap().len_utf8();
-                name = line[size..].trim().to_owned();
-                if name.is_empty() {
-                    name = "unnamed_object".to_owned();
-                }
-            }
-            Some("mtllib") => {
-                // File name can include spaces so we cannot rely on a SplitWhitespace iterator
-                let mtllib = line.split_once(' ').unwrap_or_default().1.trim();
-                let mat_file = Path::new(mtllib).to_path_buf();
-                match material_loader(mat_file.as_path()) {
-                    Ok((mut mats, map)) => {
-                        // Merge the loaded material lib with any currently loaded ones,
-                        // offsetting the indices of the appended
-                        // materials by our current length
-                        let mat_offset = materials.len();
-                        materials.append(&mut mats);
-                        for m in map {
-                            mat_map.insert(m.0, m.1 + mat_offset);
-                        }
-                    }
-                    Err(e) => {
-                        mtlresult = Err(e);
-                    }
-                }
-            }
-            Some("usemtl") => {
-                let mat_name = line.split_once(' ').unwrap_or_default().1.trim().to_owned();
-
-                if !mat_name.is_empty() {
-                    let new_mat = mat_map.get(&mat_name).cloned();
-                    // As materials are returned per-model, a new material within an object
-                    // has to emit a new model with the same name but different material
-                    if mat_id != new_mat && !tmp_faces.is_empty() {
-                        models.push(Model::new(
-                            if load_options.single_index {
-                                export_faces(
-                                    &tmp_pos,
-                                    &tmp_v_color,
-                                    &tmp_texcoord,
-                                    &tmp_normal,
-                                    &tmp_faces,
-                                    mat_id,
-                                    load_options,
-                                )?
-                            } else {
-                                export_faces_multi_index(
-                                    &tmp_pos,
-                                    &tmp_v_color,
-                                    &tmp_texcoord,
-                                    &tmp_normal,
-                                    &tmp_faces,
-                                    mat_id,
-                                    load_options,
-                                )?
-                            },
-                            name.clone(),
-                        ));
-                        tmp_faces.clear();
-                    }
-                    if new_mat.is_none() {
-                        #[cfg(feature = "log")]
-                        log::warn!("Object {} refers to unfound material: {}", name, mat_name);
-                    }
-                    mat_id = new_mat;
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            // Just ignore unrecognized characters
-            Some(_) => {}
+            ParseReturnType::None => {}
         }
     }
 
     // For the last object in the file we won't encounter another object name to
     // tell us when it's done, so if we're parsing an object push the last one
     // on the list as well
-    models.push(Model::new(
-        if load_options.single_index {
-            export_faces(
-                &tmp_pos,
-                &tmp_v_color,
-                &tmp_texcoord,
-                &tmp_normal,
-                &tmp_faces,
-                mat_id,
-                load_options,
-            )?
-        } else {
-            export_faces_multi_index(
-                &tmp_pos,
-                &tmp_v_color,
-                &tmp_texcoord,
-                &tmp_normal,
-                &tmp_faces,
-                mat_id,
-                load_options,
-            )?
-        },
-        name,
-    ));
+    models.pop_model(load_options)?;
 
-    if !materials.is_empty() {
-        mtlresult = Ok(materials);
-    }
-
-    Ok((models, mtlresult))
+    Ok((models.into_models(), materials.into_materials()))
 }
 
 /// Load the various materials in a `MTL` buffer.
 pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
-    let mut materials = Vec::new();
-    let mut mat_map = HashMap::new();
+    let mut materials = TmpMaterials::new();
     // The current material being parsed
     let mut cur_mat = Material::default();
-    for line in reader.lines() {
-        let (line, mut words) = match line {
-            Ok(ref line) => (line.trim(), line[..].split_whitespace()),
-            Err(_e) => {
-                #[cfg(feature = "log")]
-                log::error!("load_obj - failed to read line due to {}", _e);
-                return Err(LoadError::ReadError);
-            }
-        };
 
-        match words.next() {
-            Some("#") | None => continue,
-            Some("newmtl") => {
-                // If we were passing a material save it out to our vector
-                if !cur_mat.name.is_empty() {
-                    mat_map.insert(cur_mat.name.clone(), materials.len());
-                    materials.push(cur_mat);
-                }
-                cur_mat = Material::default();
-                cur_mat.name = line[6..].trim().to_owned();
-                if cur_mat.name.is_empty() {
-                    return Err(LoadError::InvalidObjectName);
-                }
-            }
-            Some("Ka") => cur_mat.ambient = Some(parse_float3(words)?),
-            Some("Kd") => cur_mat.diffuse = Some(parse_float3(words)?),
-            Some("Ks") => cur_mat.specular = Some(parse_float3(words)?),
-            Some("Ns") => cur_mat.shininess = Some(parse_float(words.next())?),
-            Some("Ni") => cur_mat.optical_density = Some(parse_float(words.next())?),
-            Some("d") => cur_mat.dissolve = Some(parse_float(words.next())?),
-            Some("map_Ka") => match line.get(6..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.ambient_texture = Some(tex.to_owned()),
-            },
-            Some("map_Kd") => match line.get(6..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.diffuse_texture = Some(tex.to_owned()),
-            },
-            Some("map_Ks") => match line.get(6..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.specular_texture = Some(tex.to_owned()),
-            },
-            Some("map_Bump") | Some("map_bump") => match line.get(8..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
-            },
-            Some("map_Ns") | Some("map_ns") | Some("map_NS") => {
-                match line.get(6..).map(str::trim) {
-                    Some("") | None => return Err(LoadError::MaterialParseError),
-                    Some(tex) => cur_mat.shininess_texture = Some(tex.to_owned()),
-                }
-            }
-            Some("bump") => match line.get(4..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.normal_texture = Some(tex.to_owned()),
-            },
-            Some("map_d") => match line.get(5..).map(str::trim) {
-                Some("") | None => return Err(LoadError::MaterialParseError),
-                Some(tex) => cur_mat.dissolve_texture = Some(tex.to_owned()),
-            },
-            Some("illum") => {
-                if let Some(p) = words.next() {
-                    match FromStr::from_str(p) {
-                        Ok(x) => cur_mat.illumination_model = Some(x),
-                        Err(_) => return Err(LoadError::MaterialParseError),
-                    }
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some(unknown) => {
-                if !unknown.is_empty() {
-                    let param = line[unknown.len()..].trim().to_owned();
-                    cur_mat.unknown_param.insert(unknown.to_owned(), param);
-                }
-            }
-        }
+    for line in reader.lines() {
+        cur_mat = parse_mtl_line(line, &mut materials, cur_mat)?;
     }
 
     // Finalize the last material we were parsing
     if !cur_mat.name.is_empty() {
-        mat_map.insert(cur_mat.name.clone(), materials.len());
         materials.push(cur_mat);
     }
 
-    Ok((materials, mat_map))
+    materials.into_mtl_load_result()
 }
 
 #[cfg(feature = "async")]
@@ -1943,6 +2029,19 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///
 /// This could e.g. be a text file already in memory, a file loaded
 ///  asynchronously over the network etc.
+///
+/// <div class="warning">
+///
+/// This function is not fully async, as it does not use async reader objects. This means you
+/// must either use a blocking reader object, which negates the point of async in the first place,
+/// or you must asynchronously read the entire buffer into memory, and then give an in-memory reader
+/// to this function, which is wasteful with memory and not terribly efficient.
+///
+/// Instead, it is recommended to use crate-specific feature flag support to enable support for
+/// various third-party async readers. For example, you can enable the `tokio` feature flag to
+/// use [tokio::load_obj_buf()].
+///
+/// </div>
 ///
 /// # Arguments
 ///
@@ -1997,6 +2096,10 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///         .await;
 /// };
 /// ```
+#[deprecated(
+    since = "4.0.3",
+    note = "load_obj_buf_async is not fully async. Use futures/tokio feature flags instead"
+)]
 pub async fn load_obj_buf_async<B, ML, MLFut>(
     reader: &mut B,
     load_options: &LoadOptions,
@@ -2011,198 +2114,287 @@ where
         return Err(LoadError::InvalidLoadOptionConfig);
     }
 
-    let mut models = Vec::new();
-    let mut materials = Vec::new();
-    let mut mat_map = HashMap::new();
-
-    let mut tmp_pos = Vec::new();
-    let mut tmp_v_color = Vec::new();
-    let mut tmp_texcoord = Vec::new();
-    let mut tmp_normal = Vec::new();
-    let mut tmp_faces: Vec<Face> = Vec::new();
-    // name of the current object being parsed
-    let mut name = "unnamed_object".to_owned();
-    // material used by the current object being parsed
-    let mut mat_id = None;
-    let mut mtlresult = Ok(Vec::new());
+    let mut models = TmpModels::new();
+    let mut materials = TmpMaterials::new();
 
     for line in reader.lines() {
-        let (line, mut words) = match line {
-            Ok(ref line) => (&line[..], line[..].split_whitespace()),
-            Err(_e) => {
-                #[cfg(feature = "log")]
-                log::error!("load_obj - failed to read line due to {}", _e);
-                return Err(LoadError::ReadError);
-            }
-        };
-        match words.next() {
-            Some("#") | None => continue,
-            Some("v") => {
-                if !parse_floatn(&mut words, &mut tmp_pos, 3) {
-                    return Err(LoadError::PositionParseError);
-                }
-
-                // Add inline vertex colors if present.
-                parse_floatn(&mut words, &mut tmp_v_color, 3);
-            }
-            Some("vt") => {
-                if !parse_floatn(&mut words, &mut tmp_texcoord, 2) {
-                    return Err(LoadError::TexcoordParseError);
-                }
-            }
-            Some("vn") => {
-                if !parse_floatn(&mut words, &mut tmp_normal, 3) {
-                    return Err(LoadError::NormalParseError);
-                }
-            }
-            Some("f") | Some("l") => {
-                if !parse_face(
-                    words,
-                    &mut tmp_faces,
-                    tmp_pos.len() / 3,
-                    tmp_texcoord.len() / 2,
-                    tmp_normal.len() / 3,
-                ) {
-                    return Err(LoadError::FaceParseError);
-                }
-            }
-            // Just treating object and group tags identically. Should there be different behavior
-            // for them?
-            Some("o") | Some("g") => {
-                // If we were already parsing an object then a new object name
-                // signals the end of the current one, so push it onto our list of objects
-                if !tmp_faces.is_empty() {
-                    models.push(Model::new(
-                        if load_options.single_index {
-                            export_faces(
-                                &tmp_pos,
-                                &tmp_v_color,
-                                &tmp_texcoord,
-                                &tmp_normal,
-                                &tmp_faces,
-                                mat_id,
-                                load_options,
-                            )?
-                        } else {
-                            export_faces_multi_index(
-                                &tmp_pos,
-                                &tmp_v_color,
-                                &tmp_texcoord,
-                                &tmp_normal,
-                                &tmp_faces,
-                                mat_id,
-                                load_options,
-                            )?
-                        },
-                        name,
-                    ));
-                    tmp_faces.clear();
-                }
-                name = line[1..].trim().to_owned();
-                if name.is_empty() {
-                    name = "unnamed_object".to_owned();
-                }
-            }
-            Some("mtllib") => {
-                if let Some(mtllib) = words.next() {
-                    let mat_file = String::from(mtllib);
-                    match material_loader(mat_file).await {
-                        Ok((mut mats, map)) => {
-                            // Merge the loaded material lib with any currently loaded ones,
-                            // offsetting the indices of the appended
-                            // materials by our current length
-                            let mat_offset = materials.len();
-                            materials.append(&mut mats);
-                            for m in map {
-                                mat_map.insert(m.0, m.1 + mat_offset);
-                            }
-                        }
-                        Err(e) => {
-                            mtlresult = Err(e);
-                        }
-                    }
-                } else {
-                    return Err(LoadError::MaterialParseError);
-                }
-            }
-            Some("usemtl") => {
-                let mat_name = line[7..].trim().to_owned();
-                if !mat_name.is_empty() {
-                    let new_mat = mat_map.get(&mat_name).cloned();
-                    // As materials are returned per-model, a new material within an object
-                    // has to emit a new model with the same name but different material
-                    if mat_id != new_mat && !tmp_faces.is_empty() {
-                        models.push(Model::new(
-                            if load_options.single_index {
-                                export_faces(
-                                    &tmp_pos,
-                                    &tmp_v_color,
-                                    &tmp_texcoord,
-                                    &tmp_normal,
-                                    &tmp_faces,
-                                    mat_id,
-                                    load_options,
-                                )?
-                            } else {
-                                export_faces_multi_index(
-                                    &tmp_pos,
-                                    &tmp_v_color,
-                                    &tmp_texcoord,
-                                    &tmp_normal,
-                                    &tmp_faces,
-                                    mat_id,
-                                    load_options,
-                                )?
-                            },
-                            name.clone(),
-                        ));
-                        tmp_faces.clear();
-                    }
-                    if new_mat.is_none() {
+        let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
+        match parse_return {
+            ParseReturnType::LoadMaterial(mat_file) => {
+                match mat_file.into_os_string().into_string() {
+                    Ok(mat_file) => materials.merge(material_loader(mat_file).await),
+                    Err(_mat_file) => {
                         #[cfg(feature = "log")]
-                        log::warn!("Object {} refers to unfound material: {}", name, mat_name);
+                        log::error!(
+                            "load_obj - material path contains invalid Unicode: {_mat_file:?}"
+                        );
+                        return Err(LoadError::ReadError);
                     }
-                    mat_id = new_mat;
-                } else {
-                    return Err(LoadError::MaterialParseError);
                 }
             }
-            // Just ignore unrecognized characters
-            Some(_) => {}
+            ParseReturnType::None => {}
         }
     }
 
     // For the last object in the file we won't encounter another object name to
     // tell us when it's done, so if we're parsing an object push the last one
     // on the list as well
-    models.push(Model::new(
-        if load_options.single_index {
-            export_faces(
-                &tmp_pos,
-                &tmp_v_color,
-                &tmp_texcoord,
-                &tmp_normal,
-                &tmp_faces,
-                mat_id,
-                load_options,
-            )?
-        } else {
-            export_faces_multi_index(
-                &tmp_pos,
-                &tmp_v_color,
-                &tmp_texcoord,
-                &tmp_normal,
-                &tmp_faces,
-                mat_id,
-                load_options,
-            )?
-        },
-        name,
-    ));
+    models.pop_model(load_options)?;
 
-    if !materials.is_empty() {
-        mtlresult = Ok(materials);
+    Ok((models.into_models(), materials.into_materials()))
+}
+
+/// Optional module supporting async loading with `futures` traits.
+///
+/// The functions in this module are drop-in replacements for the standard non-async functions in
+/// this crate, but tailored to use [futures](https://crates.io/crates/futures)
+/// [AsyncRead](futures_lite::AsyncRead) traits.
+///
+/// While `futures` provides basic read/write async traits, it does *not* provide filesystem IO
+/// implementations for these traits, so this module only contains `*_buf()` variants of this
+/// crate's functions.
+#[cfg(feature = "futures")]
+pub mod futures {
+    use super::*;
+
+    use futures_lite::{pin, AsyncBufRead, AsyncBufReadExt, StreamExt};
+
+    /// Asynchronously load the various meshes in an 'OBJ' buffer.
+    ///
+    /// This functions exactly like [crate::load_obj_buf()], but uses async read traits and an async
+    /// `material_loader` function. See [crate::load_obj_buf()] for more.
+    ///
+    /// This is the [futures](https://crates.io/crates/futures) variant of `load_obj_buf()`; see
+    /// [module-level](futures) documentation for more.
+    ///
+    /// # Examples
+    /// ```
+    /// use futures_lite::io::BufReader;
+    ///
+    /// const CORNELL_BOX_OBJ: &[u8] = include_bytes!("../obj/cornell_box.obj");
+    /// const CORNELL_BOX_MTL1: &[u8] = include_bytes!("../obj/cornell_box.mtl");
+    /// const CORNELL_BOX_MTL2: &[u8] = include_bytes!("../obj/cornell_box2.mtl");
+    ///
+    /// # async fn wrapper() {
+    /// let m = tobj::futures::load_obj_buf(
+    ///     BufReader::new(CORNELL_BOX_OBJ),
+    ///     &tobj::LoadOptions {
+    ///         triangulate: true,
+    ///         single_index: true,
+    ///         ..Default::default()
+    ///     },
+    ///     |p| async move {
+    ///         match p.to_str().unwrap() {
+    ///             "cornell_box.mtl" => {
+    ///                 let r = BufReader::new(CORNELL_BOX_MTL1);
+    ///                 tobj::futures::load_mtl_buf(r).await
+    ///             }
+    ///             "cornell_box2.mtl" => {
+    ///                 let r = BufReader::new(CORNELL_BOX_MTL2);
+    ///                 tobj::futures::load_mtl_buf(r).await
+    ///             }
+    ///             _ => unreachable!(),
+    ///         }
+    ///     },
+    /// ).await;
+    /// # }
+    /// ```
+    pub async fn load_obj_buf<B, ML, MLFut>(
+        reader: B,
+        load_options: &LoadOptions,
+        material_loader: ML,
+    ) -> LoadResult
+    where
+        B: AsyncBufRead,
+        ML: Fn(PathBuf) -> MLFut,
+        MLFut: Future<Output = MTLLoadResult>,
+    {
+        if !load_options.is_valid() {
+            return Err(LoadError::InvalidLoadOptionConfig);
+        }
+
+        let mut models = TmpModels::new();
+        let mut materials = TmpMaterials::new();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next().await {
+            let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
+            match parse_return {
+                ParseReturnType::LoadMaterial(mat_file) => {
+                    materials.merge(material_loader(mat_file).await);
+                }
+                ParseReturnType::None => {}
+            }
+        }
+
+        // For the last object in the file we won't encounter another object name to
+        // tell us when it's done, so if we're parsing an object push the last one
+        // on the list as well
+        models.pop_model(load_options)?;
+
+        Ok((models.into_models(), materials.into_materials()))
     }
 
-    Ok((models, mtlresult))
+    /// Asynchronously load the various materials in a `MTL` buffer.
+    ///
+    /// This is the [futures](https://crates.io/crates/futures) variant of `load_mtl_buf()`; see
+    /// [module-level](futures) documentation for more.
+    pub async fn load_mtl_buf<B: AsyncBufRead>(reader: B) -> MTLLoadResult {
+        let mut materials = TmpMaterials::new();
+        // The current material being parsed
+        let mut cur_mat = Material::default();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next().await {
+            cur_mat = parse_mtl_line(line, &mut materials, cur_mat)?;
+        }
+
+        // Finalize the last material we were parsing
+        if !cur_mat.name.is_empty() {
+            materials.push(cur_mat);
+        }
+
+        materials.into_mtl_load_result()
+    }
+}
+
+/// Optional module supporting async loading with `tokio` traits.
+///
+/// The functions in this module are drop-in replacements for the standard non-async functions in
+/// this crate, but tailored to use [tokio](https://crates.io/crates/tokio)
+/// [AsyncRead](::tokio::io::AsyncRead) traits.
+#[cfg(feature = "tokio")]
+pub mod tokio {
+    use super::*;
+
+    use ::tokio::fs::File;
+    use ::tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+    use ::tokio::pin;
+
+    /// Load the various objects specified in the `OBJ` file and any associated `MTL` file.
+    ///
+    /// This functions exactly like [crate::load_obj()] but uses async filesystem logic. See
+    /// [crate::load_obj()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_obj<P>(file_name: P, load_options: &LoadOptions) -> LoadResult
+    where
+        P: AsRef<Path> + fmt::Debug,
+    {
+        let file = match File::open(file_name.as_ref()).await {
+            Ok(f) => f,
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_obj - failed to open {:?} due to {}", file_name, _e);
+                return Err(LoadError::OpenFileFailed);
+            }
+        };
+        load_obj_buf(BufReader::new(file), load_options, |mat_path| {
+            // This needs to be "copied" into this closure before moving it into the async one below
+            let file_name: &Path = file_name.as_ref();
+            let file_name = file_name.to_path_buf();
+            async move {
+                let full_path = if let Some(parent) = file_name.parent() {
+                    parent.join(mat_path)
+                } else {
+                    mat_path
+                };
+
+                load_mtl(full_path).await
+            }
+        })
+        .await
+    }
+
+    /// Load the materials defined in a `MTL` file.
+    ///
+    /// This functions exactly like [crate::load_mtl()] but uses async filesystem logic. See
+    /// [crate::load_mtl()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_mtl()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_mtl<P>(file_name: P) -> MTLLoadResult
+    where
+        P: AsRef<Path> + fmt::Debug,
+    {
+        let file = match File::open(file_name.as_ref()).await {
+            Ok(f) => f,
+            Err(_e) => {
+                #[cfg(feature = "log")]
+                log::error!("load_mtl - failed to open {:?} due to {}", file_name, _e);
+                return Err(LoadError::OpenFileFailed);
+            }
+        };
+        load_mtl_buf(BufReader::new(file)).await
+    }
+
+    /// Asynchronously load the various meshes in an 'OBJ' buffer.
+    ///
+    /// This functions exactly like [crate::load_obj_buf()], but uses async read traits and an async
+    /// `material_loader` function. See [crate::load_obj_buf()] for more.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj_buf()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_obj_buf<B, ML, MLFut>(
+        reader: B,
+        load_options: &LoadOptions,
+        material_loader: ML,
+    ) -> LoadResult
+    where
+        B: AsyncBufRead,
+        ML: Fn(PathBuf) -> MLFut,
+        MLFut: Future<Output = MTLLoadResult>,
+    {
+        if !load_options.is_valid() {
+            return Err(LoadError::InvalidLoadOptionConfig);
+        }
+
+        let mut models = TmpModels::new();
+        let mut materials = TmpMaterials::new();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next_line().await.transpose() {
+            let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
+            match parse_return {
+                ParseReturnType::LoadMaterial(mat_file) => {
+                    materials.merge(material_loader(mat_file).await);
+                }
+                ParseReturnType::None => {}
+            }
+        }
+
+        // For the last object in the file we won't encounter another object name to
+        // tell us when it's done, so if we're parsing an object push the last one
+        // on the list as well
+        models.pop_model(load_options)?;
+
+        Ok((models.into_models(), materials.into_materials()))
+    }
+
+    /// Asynchronously load the various materials in a `MTL` buffer.
+    ///
+    /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_mtl_buf()`; see
+    /// [module-level](tokio) documentation for more.
+    pub async fn load_mtl_buf<B: AsyncBufRead>(reader: B) -> MTLLoadResult {
+        let mut materials = TmpMaterials::new();
+        // The current material being parsed
+        let mut cur_mat = Material::default();
+
+        pin!(reader);
+        let mut lines = reader.lines();
+        while let Some(line) = lines.next_line().await.transpose() {
+            cur_mat = parse_mtl_line(line, &mut materials, cur_mat)?;
+        }
+
+        // Finalize the last material we were parsing
+        if !cur_mat.name.is_empty() {
+            materials.push(cur_mat);
+        }
+
+        materials.into_mtl_load_result()
+    }
 }
