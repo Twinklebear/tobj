@@ -251,6 +251,9 @@ use std::future::Future;
 #[cfg(feature = "merging")]
 use std::mem::size_of;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "ahash")]
 type HashMap<K, V> = ahash::AHashMap<K, V>;
 
@@ -422,6 +425,7 @@ pub struct Mesh {
 ///   an offline path tracer or the like.
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Default, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LoadOptions {
     /// Merge identical positions.
     ///
