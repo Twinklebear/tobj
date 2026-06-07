@@ -132,6 +132,12 @@
 //!             specular[0], specular[1], specular[2]
 //!         );
 //!     }
+//!     if let Some(emissive) = m.emissive {
+//!         println!(
+//!             "    material.Ke = ({}, {}, {})",
+//!             emissive[0], emissive[1], emissive[2]
+//!         );
+//!     }
 //!     if let Some(shininess) = m.shininess {
 //!         println!("    material.Ns = {}", shininess);
 //!     }
@@ -588,6 +594,8 @@ pub struct Material {
     pub diffuse: Option<[Float; 3]>,
     /// Specular color of the material.
     pub specular: Option<[Float; 3]>,
+    /// Emissive color of the material.
+    pub emissive: Option<[Float; 3]>,
     /// Material shininess attribute. Also called `glossiness`.
     pub shininess: Option<Float>,
     /// Dissolve attribute is the alpha term for the material. Referred to as
@@ -1811,6 +1819,7 @@ fn parse_mtl_line(
         Some("Ka") => cur_mat.ambient = Some(parse_float3(words)?),
         Some("Kd") => cur_mat.diffuse = Some(parse_float3(words)?),
         Some("Ks") => cur_mat.specular = Some(parse_float3(words)?),
+        Some("Ke") => cur_mat.emissive = Some(parse_float3(words)?),
         Some("Ns") => cur_mat.shininess = Some(parse_float(words.next())?),
         Some("Ni") => cur_mat.optical_density = Some(parse_float(words.next())?),
         Some("d") => cur_mat.dissolve = Some(parse_float(words.next())?),

@@ -393,10 +393,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_float_eq!(mat.ambient.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
     assert_float_eq!(mat.diffuse.unwrap(), [1.0, 1.0, 1.0], r2nd_all <= TOL);
     assert_float_eq!(mat.specular.unwrap(), [0.0, 0.0, 0.0], r2nd_all <= TOL);
-    assert_eq!(
-        mat.unknown_param.get("Ke").map(|s| s.as_ref()),
-        Some("1 1 1")
-    );
+    assert_float_eq!(mat.emissive.unwrap(), [1.0, 1.0, 1.0], r2nd_all <= TOL);
     assert_eq!(mat.illumination_model, None);
 
     // Verify red material loaded properly
