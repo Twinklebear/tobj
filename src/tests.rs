@@ -209,7 +209,7 @@ fn non_triangulated_quad() {
     assert!(mats.is_empty());
 
     // First one is a quad formed by two triangles
-    // so face_arities is empty (all trinagles)
+    // so face_arities is empty (all triangles)
     assert!(models[0].mesh.face_arities.is_empty());
 
     // Second is a quad face
@@ -438,7 +438,7 @@ fn validate_cornell(models: Vec<tobj::Model>, mats: Vec<tobj::Material>) {
     assert_eq!(mat.unknown_param.len(), 1);
     assert_eq!(
         mat.unknown_param.get("crazy_unknown"),
-        Some(&"Wierd stuff here".to_string())
+        Some(&"Weird stuff here".to_string())
     );
 
     // Verify light material loaded properly
@@ -536,8 +536,7 @@ fn test_async_custom_material_loader() {
 mod futures {
     use super::*;
     use crate::futures::{load_mtl_buf, load_obj_buf};
-    use futures_lite::future;
-    use futures_lite::io::BufReader;
+    use futures_lite::{future, io::BufReader};
 
     #[test]
     fn test_custom_material_loader() {

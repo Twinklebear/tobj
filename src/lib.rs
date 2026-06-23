@@ -200,7 +200,7 @@
 //! * [`ahash`](https://crates.io/crates/ahash) – On by default. Use [`AHashMap`](https://docs.rs/ahash/latest/ahash/struct.AHashMap.html)
 //!   for hashing when reading files and merging vertices. To disable and use
 //!   the slower [`HashMap`](std::collections::HashMap) instead, unset default
-//! features in `Cargo.toml`:
+//!   features in `Cargo.toml`:
 //!
 //!   ```toml
 //!   [dependencies.tobj]
@@ -381,7 +381,7 @@ pub struct Mesh {
     /// each.
     pub indices: Vec<u32>,
     /// The number of vertices (arity) of each face. *Empty* if loaded with
-    /// `triangulate` set to `true` or if the mesh constists *only* of
+    /// `triangulate` set to `true` or if the mesh consists *only* of
     /// triangles.
     ///
     /// The offset for the starting index of a face can be found by iterating
@@ -506,7 +506,7 @@ pub struct LoadOptions {
     ///   `ignore_lines` is/are set to `true`, resp.
     ///
     /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
-    ///   empty as all faces are guranteed to have arity `3`.
+    ///   empty as all faces are guaranteed to have arity `3`.
     ///
     /// * Only polygons that are trivially convertible to triangle fans are
     ///   supported. Arbitrary polygons may not behave as expected. The best
@@ -677,12 +677,12 @@ impl fmt::Display for LoadError {
 impl Error for LoadError {}
 
 /// A [`Result`] containing all the models loaded from the file and any
-/// materials from referenced material libraries. Or an error that occured while
-/// loading.
+/// materials from referenced material libraries. Or an error that occurred
+/// while loading.
 pub type LoadResult = Result<(Vec<Model>, Result<Vec<Material>, LoadError>), LoadError>;
 
 /// A [`Result`] containing all the materials loaded from the file and a map of
-/// `MTL` name to index. Or an error that occured while loading.
+/// `MTL` name to index. Or an error that occurred while loading.
 pub type MTLLoadResult = Result<(Vec<Material>, HashMap<String, usize>), LoadError>;
 
 /// Struct storing indices corresponding to the vertex.
@@ -794,7 +794,7 @@ fn parse_float(val_str: Option<&str>) -> Result<Float, LoadError> {
 /// Also handles relative face indices (negative values) which is why passing
 /// the number of positions, texcoords and normals is required.
 ///
-/// Returns `false` if an error occured parsing the face.
+/// Returns `false` if an error occurred parsing the face.
 fn parse_face(
     face_str: SplitWhitespace,
     faces: &mut Vec<Face>,
@@ -2041,14 +2041,15 @@ pub fn load_mtl_buf<B: BufRead>(reader: &mut B) -> MTLLoadResult {
 ///
 /// <div class="warning">
 ///
-/// This function is not fully async, as it does not use async reader objects. This means you
-/// must either use a blocking reader object, which negates the point of async in the first place,
-/// or you must asynchronously read the entire buffer into memory, and then give an in-memory reader
+/// This function is not fully async, as it does not use async reader objects.
+/// This means you must either use a blocking reader object, which negates the
+/// point of async in the first place, or you must asynchronously read the
+/// entire buffer into memory, and then give an in-memory reader
 /// to this function, which is wasteful with memory and not terribly efficient.
 ///
-/// Instead, it is recommended to use crate-specific feature flag support to enable support for
-/// various third-party async readers. For example, you can enable the `tokio` feature flag to
-/// use [tokio::load_obj_buf()].
+/// Instead, it is recommended to use crate-specific feature flag support to
+/// enable support for various third-party async readers. For example, you can
+/// enable the `tokio` feature flag to use [tokio::load_obj_buf()].
 ///
 /// </div>
 ///
@@ -2155,13 +2156,13 @@ where
 
 /// Optional module supporting async loading with `futures` traits.
 ///
-/// The functions in this module are drop-in replacements for the standard non-async functions in
-/// this crate, but tailored to use [futures](https://crates.io/crates/futures)
+/// The functions in this module are drop-in replacements for the standard
+/// non-async functions in this crate, but tailored to use [futures](https://crates.io/crates/futures)
 /// [AsyncRead](futures_lite::AsyncRead) traits.
 ///
-/// While `futures` provides basic read/write async traits, it does *not* provide filesystem IO
-/// implementations for these traits, so this module only contains `*_buf()` variants of this
-/// crate's functions.
+/// While `futures` provides basic read/write async traits, it does *not*
+/// provide filesystem IO implementations for these traits, so this module only
+/// contains `*_buf()` variants of this crate's functions.
 #[cfg(feature = "futures")]
 pub mod futures {
     use super::*;
@@ -2170,8 +2171,9 @@ pub mod futures {
 
     /// Asynchronously load the various meshes in an 'OBJ' buffer.
     ///
-    /// This functions exactly like [crate::load_obj_buf()], but uses async read traits and an async
-    /// `material_loader` function. See [crate::load_obj_buf()] for more.
+    /// This functions exactly like [crate::load_obj_buf()], but uses async read
+    /// traits and an async `material_loader` function. See
+    /// [crate::load_obj_buf()] for more.
     ///
     /// This is the [futures](https://crates.io/crates/futures) variant of `load_obj_buf()`; see
     /// [module-level](futures) documentation for more.
@@ -2205,7 +2207,8 @@ pub mod futures {
     ///             _ => unreachable!(),
     ///         }
     ///     },
-    /// ).await;
+    /// )
+    /// .await;
     /// # }
     /// ```
     pub async fn load_obj_buf<B, ML, MLFut>(
@@ -2271,21 +2274,24 @@ pub mod futures {
 
 /// Optional module supporting async loading with `tokio` traits.
 ///
-/// The functions in this module are drop-in replacements for the standard non-async functions in
-/// this crate, but tailored to use [tokio](https://crates.io/crates/tokio)
+/// The functions in this module are drop-in replacements for the standard
+/// non-async functions in this crate, but tailored to use [tokio](https://crates.io/crates/tokio)
 /// [AsyncRead](::tokio::io::AsyncRead) traits.
 #[cfg(feature = "tokio")]
 pub mod tokio {
     use super::*;
 
-    use ::tokio::fs::File;
-    use ::tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
-    use ::tokio::pin;
+    use ::tokio::{
+        fs::File,
+        io::{AsyncBufRead, AsyncBufReadExt, BufReader},
+        pin,
+    };
 
-    /// Load the various objects specified in the `OBJ` file and any associated `MTL` file.
+    /// Load the various objects specified in the `OBJ` file and any associated
+    /// `MTL` file.
     ///
-    /// This functions exactly like [crate::load_obj()] but uses async filesystem logic. See
-    /// [crate::load_obj()] for more.
+    /// This functions exactly like [crate::load_obj()] but uses async
+    /// filesystem logic. See [crate::load_obj()] for more.
     ///
     /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj()`; see
     /// [module-level](tokio) documentation for more.
@@ -2302,7 +2308,8 @@ pub mod tokio {
             }
         };
         load_obj_buf(BufReader::new(file), load_options, |mat_path| {
-            // This needs to be "copied" into this closure before moving it into the async one below
+            // This needs to be "copied" into this closure before moving it into the async
+            // one below
             let file_name: &Path = file_name.as_ref();
             let file_name = file_name.to_path_buf();
             async move {
@@ -2320,8 +2327,8 @@ pub mod tokio {
 
     /// Load the materials defined in a `MTL` file.
     ///
-    /// This functions exactly like [crate::load_mtl()] but uses async filesystem logic. See
-    /// [crate::load_mtl()] for more.
+    /// This functions exactly like [crate::load_mtl()] but uses async
+    /// filesystem logic. See [crate::load_mtl()] for more.
     ///
     /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_mtl()`; see
     /// [module-level](tokio) documentation for more.
@@ -2342,8 +2349,9 @@ pub mod tokio {
 
     /// Asynchronously load the various meshes in an 'OBJ' buffer.
     ///
-    /// This functions exactly like [crate::load_obj_buf()], but uses async read traits and an async
-    /// `material_loader` function. See [crate::load_obj_buf()] for more.
+    /// This functions exactly like [crate::load_obj_buf()], but uses async read
+    /// traits and an async `material_loader` function. See
+    /// [crate::load_obj_buf()] for more.
     ///
     /// This is the [tokio](https://crates.io/crates/tokio) variant of `load_obj_buf()`; see
     /// [module-level](tokio) documentation for more.
