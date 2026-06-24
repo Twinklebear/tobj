@@ -635,6 +635,8 @@ pub enum LoadError {
     ReadError,
     UnrecognizedCharacter,
     PositionParseError,
+    ScalingByZeroError,
+    ColorParseError,
     NormalParseError,
     TexcoordParseError,
     FaceParseError,
@@ -656,6 +658,8 @@ impl fmt::Display for LoadError {
             LoadError::ReadError => "read error",
             LoadError::UnrecognizedCharacter => "unrecognized character",
             LoadError::PositionParseError => "position parse error",
+            LoadError::ScalingByZeroError => "scaling (w) by zero",
+            LoadError::ColorParseError => "color parse error (too many or too few components)",
             LoadError::NormalParseError => "normal parse error",
             LoadError::TexcoordParseError => "texcoord parse error",
             LoadError::FaceParseError => "face parse error",
@@ -768,7 +772,7 @@ fn parse_floatn(val_str: &mut SplitWhitespace, vals: &mut Vec<Float>, n: usize) 
     sz + n == vals.len()
 }
 
-/// Parse the a string into a float3 array, returns an error if parsing failed
+/// Parse a string into a float3 array, returns an error if parsing failed
 fn parse_float3(val_str: SplitWhitespace) -> Result<[Float; 3], LoadError> {
     let arr: [Float; 3] = val_str
         .take(3)
@@ -780,7 +784,7 @@ fn parse_float3(val_str: SplitWhitespace) -> Result<[Float; 3], LoadError> {
     Ok(arr)
 }
 
-/// Parse the a string into a float value, returns an error if parsing failed
+/// Parse a string into a float value, returns an error if parsing failed
 fn parse_float(val_str: Option<&str>) -> Result<Float, LoadError> {
     val_str
         .map(FromStr::from_str)
@@ -1498,7 +1502,7 @@ fn reorder_data(mesh: &mut Mesh) {
 /// Merge identical points. A point has dimension N.
 #[cfg(feature = "merging")]
 #[inline]
-fn merge_identical_points<const N: usize>(points: &mut Vec<Float>, indices: &mut Vec<u32>)
+fn merge_identical_points<const N: usize>(points: &mut Vec<Float>, indices: &mut [u32])
 where
     [(); size_of::<[Float; N]>()]:,
 {
@@ -1703,12 +1707,51 @@ fn parse_obj_line(
     match words.next() {
         Some("#") | None => Ok(ParseReturnType::None),
         Some("v") => {
+            // we need three floats for the coordinates
             if !parse_floatn(&mut words, &mut models.pos, 3) {
                 return Err(LoadError::PositionParseError);
             }
 
-            // Add inline vertex colors if present.
-            parse_floatn(&mut words, &mut models.v_color, 3);
+            // then it is possible to have either 0, 1, or 3 more float values
+            // 0 -> just coordinates
+            // 1 -> w value that scales x, y, and z parsed before
+            // 3 -> rgb values
+            // w and rgb values should not appear together
+            let Some(first) = words.next() else {
+                return Ok(ParseReturnType::None);
+            };
+
+            match (words.next(), words.next()) {
+                (None, _) => {
+                    let w: Float =
+                        FromStr::from_str(first).map_err(|_| LoadError::PositionParseError)?;
+                    if w == 0.0 {
+                        return Err(LoadError::ScalingByZeroError);
+                    }
+                    // apply this to the latest three coordinates
+                    for coordinate in models.pos.iter_mut().rev().take(3) {
+                        *coordinate /= w;
+                    }
+                }
+                (Some(_), None) => {
+                    // too few values
+                    return Err(LoadError::ColorParseError);
+                }
+                (Some(second), Some(third)) => {
+                    if words.next().is_some() {
+                        // we have too many values
+                        return Err(LoadError::ColorParseError);
+                    }
+
+                    for rgb_component in [first, second, third] {
+                        match FromStr::from_str(rgb_component) {
+                            Ok(x) => models.v_color.push(x),
+                            Err(_) => break,
+                        }
+                    }
+                }
+            }
+
             Ok(ParseReturnType::None)
         }
         Some("vt") => {

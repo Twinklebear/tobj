@@ -1,0 +1,7 @@
+# A simple triangle object for testing
+o Triangle
+v 0 0 0 0.0
+v 1 0 0 0.5
+v 0 1 0 0.5
+
+f -3 -2 -1
