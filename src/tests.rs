@@ -49,6 +49,63 @@ fn simple_triangle() {
 }
 
 #[test]
+fn simple_triangle_scaled() {
+    let m = tobj::load_obj(
+        "obj/triangle_scaled.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_ok());
+    let (models, mats) = m.unwrap();
+    let mats = mats.unwrap();
+    // We expect a single model with no materials
+    assert_eq!(models.len(), 1);
+    assert!(mats.is_empty());
+    // Confirm our triangle is loaded correctly
+    assert_eq!(models[0].name, "Triangle");
+    let mesh = &models[0].mesh;
+    assert!(mesh.normals.is_empty());
+    assert!(mesh.texcoords.is_empty());
+    assert_eq!(mesh.material_id, None);
+
+    // Verify each position is loaded properly
+    let expect_pos = vec![0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 2.0, 0.0];
+    assert_float_eq!(mesh.positions, expect_pos, r2nd_all <= TOL);
+    // Verify the indices are loaded properly
+    let expect_idx = vec![0, 1, 2];
+    assert_eq!(mesh.indices, expect_idx);
+
+    // Verify that there are no vertex colors
+    assert!(mesh.vertex_color.is_empty());
+}
+
+#[test]
+fn simple_triangle_scaled_by_zeor() {
+    let m = tobj::load_obj(
+        "obj/triangle_scaled_by_zero.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_err());
+}
+
+#[test]
+fn triangle_with_two_floats() {
+    let m = tobj::load_obj(
+        "obj/triangle_with_two_additional_floats.obj",
+        &tobj::LoadOptions {
+            single_index: true,
+            ..Default::default()
+        },
+    );
+    assert!(m.is_err());
+}
+
+#[test]
 fn simple_triangle_colored() {
     let m = tobj::load_obj(
         "obj/triangle_colored.obj",
