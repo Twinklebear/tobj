@@ -3,9 +3,16 @@ use std::{
     env,
     fs::File,
     io::{BufReader, Cursor},
+    ops::ControlFlow,
+    path::Path,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
 };
 
 use crate as tobj;
+use tobj::{load_mtl_buf, load_obj_buf, LoadError, LoadOptions, LoadProgressCallback};
 
 const CORNELL_BOX_OBJ: &str = include_str!("../obj/cornell_box.obj");
 const CORNELL_BOX_MTL1: &str = include_str!("../obj/cornell_box.mtl");
@@ -663,6 +670,91 @@ fn test_custom_material_loader_files() {
     assert_eq!(models.len(), 8);
     assert_eq!(mats.len(), 5);
     validate_cornell(models, mats);
+}
+
+#[test]
+fn test_progress_callback_noop_matches_no_callback() {
+    let material_loader = |p: &Path| match p.to_str().unwrap() {
+        "cornell_box.mtl" => load_mtl_buf(&mut BufReader::new(CORNELL_BOX_MTL1.as_bytes())),
+        "cornell_box2.mtl" => load_mtl_buf(&mut BufReader::new(CORNELL_BOX_MTL2.as_bytes())),
+        _ => unreachable!(),
+    };
+
+    let without_callback = load_obj_buf(
+        &mut Cursor::new(CORNELL_BOX_OBJ.as_bytes()),
+        &LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+        material_loader,
+    );
+
+    let with_callback = load_obj_buf(
+        &mut Cursor::new(CORNELL_BOX_OBJ.as_bytes()),
+        &LoadOptions {
+            triangulate: true,
+            single_index: true,
+            progress_callback: Some(LoadProgressCallback::new(|_progress| {
+                ControlFlow::Continue(())
+            })),
+            ..Default::default()
+        },
+        material_loader,
+    );
+
+    // A no-op progress callback must not change the parse result in any way.
+    assert_eq!(
+        format!("{:?}", without_callback),
+        format!("{:?}", with_callback)
+    );
+}
+
+#[test]
+fn test_progress_callback_cancels_load() {
+    // More lines than the progress-report throttle interval, so the
+    // callback is guaranteed to fire (and cancel the load) before EOF.
+    let obj = "v 0.0 0.0 0.0\n".repeat(2500);
+
+    let result = load_obj_buf(
+        &mut Cursor::new(obj.as_bytes()),
+        &LoadOptions {
+            progress_callback: Some(LoadProgressCallback::new(
+                |_progress| ControlFlow::Break(()),
+            )),
+            ..Default::default()
+        },
+        |_| unreachable!("no mtllib in the synthetic buffer"),
+    );
+
+    assert_eq!(result.unwrap_err(), LoadError::Cancelled);
+}
+
+#[test]
+fn test_progress_callback_is_throttled() {
+    let line_count = 10_000usize;
+    let obj = "v 0.0 0.0 0.0\n".repeat(line_count);
+
+    let call_count = Arc::new(AtomicU64::new(0));
+    let call_count_clone = call_count.clone();
+    let result = load_obj_buf(
+        &mut Cursor::new(obj.as_bytes()),
+        &LoadOptions {
+            progress_callback: Some(LoadProgressCallback::new(move |_progress| {
+                call_count_clone.fetch_add(1, Ordering::SeqCst);
+                ControlFlow::Continue(())
+            })),
+            ..Default::default()
+        },
+        |_| unreachable!("no mtllib in the synthetic buffer"),
+    );
+
+    assert!(result.is_ok());
+    // The callback must be throttled, i.e. called far less often than once
+    // per line.
+    let calls = call_count.load(Ordering::SeqCst);
+    assert!(calls > 0);
+    assert!((calls as usize) < line_count);
 }
 
 #[test]

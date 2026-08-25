@@ -241,8 +241,10 @@ use std::{
     fmt,
     fs::File,
     io::{prelude::*, BufReader},
+    ops::ControlFlow,
     path::{Path, PathBuf},
     str::{FromStr, SplitWhitespace},
+    sync::Arc,
 };
 
 #[cfg(feature = "use_f64")]
@@ -276,6 +278,7 @@ pub const GPU_LOAD_OPTIONS: LoadOptions = LoadOptions {
     triangulate: true,
     ignore_points: true,
     ignore_lines: true,
+    progress_callback: None,
 };
 
 /// Typical [`LoadOptions`] for using meshes with an offline rendeder.
@@ -293,6 +296,7 @@ pub const OFFLINE_RENDERING_LOAD_OPTIONS: LoadOptions = LoadOptions {
     triangulate: false,
     ignore_points: true,
     ignore_lines: true,
+    progress_callback: None,
 };
 
 /// A mesh made up of triangles loaded from some `OBJ` file.
@@ -404,6 +408,61 @@ pub struct Mesh {
     pub material_id: Option<usize>,
 }
 
+/// A snapshot of progress made so far while parsing an `OBJ` buffer in
+/// [`load_obj_buf()`].
+///
+/// Passed to a [`LoadProgressCallback`] registered via
+/// [`LoadOptions::progress_callback`]. The callback is throttled -- it is not
+/// invoked for every line read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LoadProgress {
+    /// Number of lines read from the buffer so far.
+    pub lines_read: u64,
+    /// Number of bytes read from the buffer so far.
+    ///
+    /// This is a lower bound: line-ending bytes stripped by
+    /// [`BufRead::lines()`](std::io::BufRead::lines) are not counted, since
+    /// they are not seen by the parser.
+    pub bytes_read: u64,
+}
+
+/// A throttled progress-report and cooperative-cancellation callback.
+///
+/// Wraps a closure that is invoked periodically while [`load_obj_buf()`]
+/// parses a buffer. Returning [`ControlFlow::Break`] from the closure aborts
+/// the load and causes [`load_obj_buf()`] to return
+/// [`LoadError::Cancelled`].
+///
+/// Register one via [`LoadOptions::progress_callback`].
+#[derive(Clone)]
+pub struct LoadProgressCallback(Arc<LoadProgressCallbackFn>);
+
+type LoadProgressCallbackFn = dyn Fn(&LoadProgress) -> ControlFlow<()> + Send + Sync;
+
+impl LoadProgressCallback {
+    /// Creates a new [`LoadProgressCallback`] from a closure.
+    pub fn new(f: impl Fn(&LoadProgress) -> ControlFlow<()> + Send + Sync + 'static) -> Self {
+        Self(Arc::new(f))
+    }
+
+    /// Invokes the wrapped closure with the given `progress` snapshot.
+    fn call(&self, progress: &LoadProgress) -> ControlFlow<()> {
+        (self.0)(progress)
+    }
+}
+
+impl fmt::Debug for LoadProgressCallback {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("LoadProgressCallback(..)")
+    }
+}
+
+impl PartialEq for LoadProgressCallback {
+    fn eq(&self, _other: &Self) -> bool {
+        true // Not data.
+    }
+}
+
 /// Options for processing the mesh during loading.
 ///
 /// Passed to [`load_obj()`], [`load_obj_buf()`] and [`load_obj_buf_async()`].
@@ -427,7 +486,7 @@ pub struct Mesh {
 /// * [`OFFLINE_RENDERING_LOAD_OPTIONS`] – if you're rendering meshes with e.g.
 ///   an offline path tracer or the like.
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct LoadOptions {
     /// Merge identical positions.
     ///
@@ -529,6 +588,16 @@ pub struct LoadOptions {
     /// Polygon meshes that contains faces with two vertices only usually do so
     /// because of bad topology.
     pub ignore_lines: bool,
+    /// Optional progress-report and cooperative-cancellation callback.
+    ///
+    /// If set, [`load_obj_buf()`] invokes it periodically (throttled; not on
+    /// every line) while parsing, passing it a [`LoadProgress`] snapshot.
+    /// Returning [`ControlFlow::Break`] from the callback aborts the load and
+    /// causes [`load_obj_buf()`] to return [`LoadError::Cancelled`].
+    ///
+    /// Not invoked by [`load_obj_buf_async()`].
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    pub progress_callback: Option<LoadProgressCallback>,
 }
 
 impl LoadOptions {
@@ -649,6 +718,7 @@ pub enum LoadError {
     FaceColorOutOfBounds,
     InvalidLoadOptionConfig,
     GenericFailure,
+    Cancelled,
 }
 
 impl fmt::Display for LoadError {
@@ -672,6 +742,7 @@ impl fmt::Display for LoadError {
             LoadError::FaceColorOutOfBounds => "face vertex color index out of bounds",
             LoadError::InvalidLoadOptionConfig => "mutually exclusive load options",
             LoadError::GenericFailure => "generic failure",
+            LoadError::Cancelled => "load cancelled by progress callback",
         };
 
         f.write_str(msg)
@@ -2037,16 +2108,41 @@ where
         return Err(LoadError::InvalidLoadOptionConfig);
     }
 
+    // How often (in lines) to invoke `load_options.progress_callback`, if set.
+    // Kept coarse so the callback's cost stays negligible next to parsing.
+    const PROGRESS_REPORT_INTERVAL: u64 = 1000;
+
     let mut models = TmpModels::new();
     let mut materials = TmpMaterials::new();
 
+    let mut lines_read: u64 = 0;
+    let mut bytes_read: u64 = 0;
+
     for line in reader.lines() {
+        lines_read += 1;
+        // `BufRead::lines()` strips the line terminator, so this
+        // undercounts by one byte per line. Good enough for progress
+        // reporting.
+        bytes_read += line.as_ref().map(|l| l.len() as u64 + 1).unwrap_or(0);
+
         let parse_return = parse_obj_line(line, load_options, &mut models, &materials)?;
         match parse_return {
             ParseReturnType::LoadMaterial(mat_file) => {
                 materials.merge(material_loader(mat_file.as_path()));
             }
             ParseReturnType::None => {}
+        }
+
+        if let Some(callback) = &load_options.progress_callback {
+            if lines_read.is_multiple_of(PROGRESS_REPORT_INTERVAL) {
+                let progress = LoadProgress {
+                    lines_read,
+                    bytes_read,
+                };
+                if let ControlFlow::Break(()) = callback.call(&progress) {
+                    return Err(LoadError::Cancelled);
+                }
+            }
         }
     }
 
