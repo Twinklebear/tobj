@@ -18,17 +18,13 @@ fn main() {
         println!("model[{}].name             = \'{}\'", i, m.name);
         println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 
-        println!(
-            "model[{}].face_count       = {}",
-            i,
-            mesh.face_arities.len()
-        );
+        println!("model[{}].face_count       = {}", i, mesh.face_count());
 
         let mut next_face = 0;
-        for face in 0..mesh.face_arities.len() {
-            let end = next_face + mesh.face_arities[face] as usize;
+        for face in 0..mesh.face_count() {
+            let end = next_face + mesh.face_arity(face);
 
-            let face_indices = &mesh.indices[next_face..end];
+            let face_indices = mesh.face_indices(face);
             println!(" face[{}].indices          = {:?}", face, face_indices);
 
             if !mesh.texcoord_indices.is_empty() {

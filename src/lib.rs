@@ -83,18 +83,11 @@
 //!     println!("model[{}].name = \'{}\'", i, m.name);
 //!     println!("model[{}].mesh.material_id = {:?}", i, mesh.material_id);
 //!
-//!     println!(
-//!         "Size of model[{}].face_arities: {}",
-//!         i,
-//!         mesh.face_arities.len()
-//!     );
+//!     println!("model[{}].face_count = {}", i, mesh.face_count());
 //!
-//!     let mut next_face = 0;
-//!     for f in 0..mesh.face_arities.len() {
-//!         let end = next_face + mesh.face_arities[f] as usize;
-//!         let face_indices: Vec<_> = mesh.indices[next_face..end].iter().collect();
+//!     for f in 0..mesh.face_count() {
+//!         let face_indices = mesh.face_indices(f);
 //!         println!("    face[{}] = {:?}", f, face_indices);
-//!         next_face = end;
 //!     }
 //!
 //!     // Normals and texture coordinates are also loaded, but not printed in this example
@@ -384,14 +377,20 @@ pub struct Mesh {
     /// Otherwise normals and texture coordinates have *their own* indices,
     /// each.
     pub indices: Vec<u32>,
-    /// The number of vertices (arity) of each face. *Empty* if loaded with
-    /// `triangulate` set to `true` or if the mesh consists *only* of
-    /// triangles.
+    /// The number of vertices (arity) of each face.
     ///
-    /// The offset for the starting index of a face can be found by iterating
-    /// through the `face_arities` until reaching the desired face, accumulating
-    /// the number of vertices used so far.
-    pub face_arities: Vec<u32>,
+    /// - `None` means all faces are triangles (3 vertices each).
+    /// - `Some(vec)` contains the vertex count for each face, which may include
+    ///   triangles (3), quads (4), or other polygons.
+    ///
+    /// When iterating through faces:
+    /// - If `None`, each face uses exactly 3 consecutive indices.
+    /// - If `Some(vec)`, the offset for face `i` is the sum of all previous
+    ///   face arities.
+    ///
+    /// This optimization saves memory for triangle-only meshes, which are
+    /// common in real-time rendering contexts.
+    pub face_arities: Option<Vec<u32>>,
     /// The indices for vertex colors. Only present when the
     /// [`merging`](LoadOptions::merge_identical_points) feature is enabled, and
     /// empty unless the corresponding load option is set to `true`.
@@ -406,6 +405,65 @@ pub struct Mesh {
     /// Optional material id associated with this mesh. The material id indexes
     /// into the Vec of Materials loaded from the associated `MTL` file
     pub material_id: Option<usize>,
+}
+
+impl Mesh {
+    /// Returns the number of faces in the mesh.
+    ///
+    /// For triangle-only meshes (when `face_arities` is `None`),
+    /// this is calculated as `indices.len() / 3`.
+    pub fn face_count(&self) -> usize {
+        match &self.face_arities {
+            None => self.indices.len() / 3,
+            Some(arities) => arities.len(),
+        }
+    }
+
+    /// Returns the number of vertices (arity) for a specific face.
+    ///
+    /// Returns 3 for triangle-only meshes (when `face_arities` is `None`).
+    /// Panics if the face index is out of bounds.
+    pub fn face_arity(&self, face_index: usize) -> usize {
+        match &self.face_arities {
+            None => {
+                assert!(
+                    face_index < self.indices.len() / 3,
+                    "Face index out of bounds"
+                );
+                3
+            }
+            Some(arities) => {
+                assert!(face_index < arities.len(), "Face index out of bounds");
+                arities[face_index] as usize
+            }
+        }
+    }
+
+    /// Returns true if all faces in the mesh are triangles.
+    pub fn is_triangulated(&self) -> bool {
+        self.face_arities.is_none()
+    }
+
+    /// Returns the indices for a specific face.
+    ///
+    /// For triangle-only meshes, returns a slice of exactly 3 indices.
+    /// For mixed meshes, returns a slice with the appropriate number of
+    /// indices.
+    pub fn face_indices(&self, face_index: usize) -> &[u32] {
+        match &self.face_arities {
+            None => {
+                let start = face_index * 3;
+                assert!(start + 3 <= self.indices.len(), "Face index out of bounds");
+                &self.indices[start..start + 3]
+            }
+            Some(arities) => {
+                assert!(face_index < arities.len(), "Face index out of bounds");
+                let start: usize = arities[..face_index].iter().map(|&a| a as usize).sum();
+                let end = start + arities[face_index] as usize;
+                &self.indices[start..end]
+            }
+        }
+    }
 }
 
 /// A snapshot of progress made so far while parsing an `OBJ` buffer in
@@ -565,7 +623,7 @@ pub struct LoadOptions {
     ///   `ignore_lines` is/are set to `true`, resp.
     ///
     /// * The resulting `Mesh`'s [`face_arities`](Mesh::face_arities) will be
-    ///   empty as all faces are guaranteed to have arity `3`.
+    ///   `None` as all faces are guaranteed to have arity `3`.
     ///
     /// * Only polygons that are trivially convertible to triangle fans are
     ///   supported. Arbitrary polygons may not behave as expected. The best
@@ -877,13 +935,13 @@ fn parse_face(
     tex_sz: usize,
     norm_sz: usize,
 ) -> bool {
-    let mut indices = Vec::new();
-    for f in face_str {
-        match VertexIndices::parse(f, pos_sz, tex_sz, norm_sz) {
-            Some(v) => indices.push(v),
-            None => return false,
-        }
-    }
+    let indices: Vec<VertexIndices> = match face_str
+        .map(|f| VertexIndices::parse(f, pos_sz, tex_sz, norm_sz))
+        .collect()
+    {
+        Some(indices) => indices,
+        None => return false,
+    };
     // Check what kind face we read and push it on
     match indices.len() {
         1 => faces.push(Face::Point(indices[0])),
@@ -981,7 +1039,7 @@ fn export_faces(
                         add_vertex(&mut mesh, &mut index_map, a, pos, v_color, texcoord, normal)?;
                     } else {
                         is_all_triangles = false;
-                        mesh.face_arities.push(1);
+                        mesh.face_arities.get_or_insert_with(Vec::new).push(1);
                     }
                 }
             }
@@ -993,7 +1051,7 @@ fn export_faces(
                         add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
                     } else {
                         is_all_triangles = false;
-                        mesh.face_arities.push(2);
+                        mesh.face_arities.get_or_insert_with(Vec::new).push(2);
                     }
                 }
             }
@@ -1002,7 +1060,7 @@ fn export_faces(
                 add_vertex(&mut mesh, &mut index_map, b, pos, v_color, texcoord, normal)?;
                 add_vertex(&mut mesh, &mut index_map, c, pos, v_color, texcoord, normal)?;
                 if !load_options.triangulate {
-                    mesh.face_arities.push(3);
+                    mesh.face_arities.get_or_insert_with(Vec::new).push(3);
                 }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
@@ -1017,7 +1075,7 @@ fn export_faces(
                 } else {
                     add_vertex(&mut mesh, &mut index_map, d, pos, v_color, texcoord, normal)?;
                     is_all_triangles = false;
-                    mesh.face_arities.push(4);
+                    mesh.face_arities.get_or_insert_with(Vec::new).push(4);
                 }
             }
             Face::Polygon(ref indices) => {
@@ -1035,7 +1093,9 @@ fn export_faces(
                         add_vertex(&mut mesh, &mut index_map, i, pos, v_color, texcoord, normal)?;
                     }
                     is_all_triangles = false;
-                    mesh.face_arities.push(indices.len() as u32);
+                    mesh.face_arities
+                        .get_or_insert_with(Vec::new)
+                        .push(indices.len() as u32);
                 }
             }
         }
@@ -1043,7 +1103,7 @@ fn export_faces(
 
     if is_all_triangles {
         // This is a triangle-only mesh.
-        mesh.face_arities = Vec::new();
+        mesh.face_arities = None;
     }
 
     Ok(mesh)
@@ -1247,7 +1307,7 @@ fn export_faces_multi_index(
                         )?;
                     } else {
                         is_all_triangles = false;
-                        mesh.face_arities.push(1);
+                        mesh.face_arities.get_or_insert_with(Vec::new).push(1);
                     }
                 }
             }
@@ -1289,7 +1349,7 @@ fn export_faces_multi_index(
                         )?;
                     } else {
                         is_all_triangles = false;
-                        mesh.face_arities.push(2);
+                        mesh.face_arities.get_or_insert_with(Vec::new).push(2);
                     }
                 }
             }
@@ -1328,7 +1388,7 @@ fn export_faces_multi_index(
                     normal,
                 )?;
                 if !load_options.triangulate {
-                    mesh.face_arities.push(3);
+                    mesh.face_arities.get_or_insert_with(Vec::new).push(3);
                 }
             }
             Face::Quad(ref a, ref b, ref c, ref d) => {
@@ -1413,7 +1473,7 @@ fn export_faces_multi_index(
                         normal,
                     )?;
                     is_all_triangles = false;
-                    mesh.face_arities.push(4);
+                    mesh.face_arities.get_or_insert_with(Vec::new).push(4);
                 }
             }
             Face::Polygon(ref indices) => {
@@ -1471,7 +1531,9 @@ fn export_faces_multi_index(
                         )?;
                     }
                     is_all_triangles = false;
-                    mesh.face_arities.push(indices.len() as u32);
+                    mesh.face_arities
+                        .get_or_insert_with(Vec::new)
+                        .push(indices.len() as u32);
                 }
             }
         }
@@ -1479,7 +1541,7 @@ fn export_faces_multi_index(
 
     if is_all_triangles {
         // This is a triangle-only mesh.
-        mesh.face_arities = Vec::new();
+        mesh.face_arities = None;
     }
 
     #[cfg(feature = "merging")]
@@ -1728,9 +1790,8 @@ impl TmpMaterials {
                 // materials by our current length
                 let mat_offset = self.materials.len();
                 self.materials.append(&mut mats);
-                for m in map {
-                    self.mat_map.insert(m.0, m.1 + mat_offset);
-                }
+                self.mat_map
+                    .extend(map.into_iter().map(|(name, idx)| (name, idx + mat_offset)));
             }
             Err(e) => {
                 self.mtlerr = Some(e);
