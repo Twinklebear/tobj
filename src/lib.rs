@@ -790,8 +790,8 @@ impl VertexIndices {
     ) -> Option<VertexIndices> {
         let mut indices = [MISSING_INDEX; 3];
         for i in face_str.split('/').enumerate() {
-            // Catch case of v//vn where we'll find an empty string in one of our splits
-            // since there are no texcoords for the mesh.
+            // Catch case of v//vn where we'll find an empty string in one of
+            // our splits since there are no texcoords for the mesh.
             if !i.1.is_empty() {
                 match isize::from_str(i.1) {
                     Ok(x) => {
@@ -970,8 +970,8 @@ fn export_faces(
     let mut is_all_triangles = true;
 
     for f in faces {
-        // Optimized paths for Triangles and Quads, Polygon handles the general case of
-        // an unknown length triangle fan.
+        // Optimized paths for Triangles and Quads, Polygon handles the general
+        // case of an unknown length triangle fan.
         match *f {
             Face::Point(ref a) => {
                 if !load_options.ignore_points {
@@ -1206,8 +1206,8 @@ fn export_faces_multi_index(
     let mut is_all_triangles = true;
 
     for f in faces {
-        // Optimized paths for Triangles and Quads, Polygon handles the general case of
-        // an unknown length triangle fan
+        // Optimized paths for Triangles and Quads, Polygon handles the general
+        // case of an unknown length triangle fan
         match *f {
             Face::Point(ref a) => {
                 if !load_options.ignore_points {
@@ -1856,7 +1856,8 @@ fn parse_obj_line(
         // for them?
         Some("o") | Some("g") => {
             // If we were already parsing an object then a new object name
-            // signals the end of the current one, so push it onto our list of objects
+            // signals the end of the current one, so push it onto our list of
+            // objects
             if !models.faces.is_empty() {
                 models.pop_model(load_options)?;
             }
@@ -1868,7 +1869,8 @@ fn parse_obj_line(
             Ok(ParseReturnType::None)
         }
         Some("mtllib") => {
-            // File name can include spaces so we cannot rely on a SplitWhitespace iterator
+            // File name can include spaces so we cannot rely on a
+            // SplitWhitespace iterator
             let mtllib = line.split_once(' ').unwrap_or_default().1.trim();
             let mat_file = Path::new(mtllib).to_path_buf();
             Ok(ParseReturnType::LoadMaterial(mat_file))
@@ -1878,8 +1880,9 @@ fn parse_obj_line(
 
             if !mat_name.is_empty() {
                 let new_mat = materials.mat_map.get(&mat_name).cloned();
-                // As materials are returned per-model, a new material within an object
-                // has to emit a new model with the same name but different material
+                // As materials are returned per-model, a new material within an
+                // object has to emit a new model with the same
+                // name but different material
                 if models.mat_id != new_mat && !models.faces.is_empty() {
                     models.pop_model(load_options)?;
                 }
@@ -2393,9 +2396,9 @@ pub mod futures {
             }
         }
 
-        // For the last object in the file we won't encounter another object name to
-        // tell us when it's done, so if we're parsing an object push the last one
-        // on the list as well
+        // For the last object in the file we won't encounter another object
+        // name to tell us when it's done, so if we're parsing an object
+        // push the last one on the list as well
         models.pop_model(load_options)?;
 
         Ok((models.into_models(), materials.into_materials()))
@@ -2461,8 +2464,8 @@ pub mod tokio {
             }
         };
         load_obj_buf(BufReader::new(file), load_options, |mat_path| {
-            // This needs to be "copied" into this closure before moving it into the async
-            // one below
+            // This needs to be "copied" into this closure before moving it into
+            // the async one below
             let file_name: &Path = file_name.as_ref();
             let file_name = file_name.to_path_buf();
             async move {
@@ -2537,9 +2540,9 @@ pub mod tokio {
             }
         }
 
-        // For the last object in the file we won't encounter another object name to
-        // tell us when it's done, so if we're parsing an object push the last one
-        // on the list as well
+        // For the last object in the file we won't encounter another object
+        // name to tell us when it's done, so if we're parsing an object
+        // push the last one on the list as well
         models.pop_model(load_options)?;
 
         Ok((models.into_models(), materials.into_materials()))

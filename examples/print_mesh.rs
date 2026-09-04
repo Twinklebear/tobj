@@ -6,7 +6,8 @@ fn main() {
     let (models, materials) =
         tobj::load_obj(obj_file, &tobj::LoadOptions::default()).expect("Failed to OBJ load file");
 
-    // Note: If you don't mind missing the materials, you can generate a default.
+    // Note: If you don't mind missing the materials, you can generate a
+    // default.
     let materials = materials.expect("Failed to load MTL file");
 
     println!("Number of models          = {}", models.len());
