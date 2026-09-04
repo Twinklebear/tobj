@@ -758,6 +758,55 @@ fn test_progress_callback_is_throttled() {
 }
 
 #[test]
+fn test_progress_callback_fires_once_more_on_completion_with_the_true_final_count() {
+    // Not a multiple of the 1000-line throttle interval, so the loop body
+    // never reports the true final count on its own.
+    let line_count = 2500u64;
+    let obj = "v 0.0 0.0 0.0\n".repeat(line_count as usize);
+
+    let last_lines_read = Arc::new(AtomicU64::new(0));
+    let last_lines_read_clone = last_lines_read.clone();
+    let result = load_obj_buf(
+        &mut Cursor::new(obj.as_bytes()),
+        &LoadOptions {
+            progress_callback: Some(LoadProgressCallback::new(move |progress| {
+                last_lines_read_clone.store(progress.lines_read, Ordering::SeqCst);
+                ControlFlow::Continue(())
+            })),
+            ..Default::default()
+        },
+        |_| unreachable!("no mtllib in the synthetic buffer"),
+    );
+
+    assert!(result.is_ok());
+    assert_eq!(last_lines_read.load(Ordering::SeqCst), line_count);
+}
+
+#[test]
+fn test_progress_callback_completion_call_cannot_cancel_an_already_finished_load() {
+    // Fewer lines than the throttle interval, so the ONLY invocation is the
+    // unconditional completion call.
+    let obj = "v 0.0 0.0 0.0\n".repeat(10);
+
+    let result = load_obj_buf(
+        &mut Cursor::new(obj.as_bytes()),
+        &LoadOptions {
+            progress_callback: Some(LoadProgressCallback::new(
+                |_progress| ControlFlow::Break(()),
+            )),
+            ..Default::default()
+        },
+        |_| unreachable!("no mtllib in the synthetic buffer"),
+    );
+
+    assert!(
+        result.is_ok(),
+        "the parse already fully succeeded by the time the completion call \
+         fires, so Break there must not discard it"
+    );
+}
+
+#[test]
 fn test_invalid_index() {
     let m = tobj::load_obj(
         "obj/invalid_index.obj",

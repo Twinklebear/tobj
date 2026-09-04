@@ -2151,6 +2151,20 @@ where
     // on the list as well
     models.pop_model(load_options)?;
 
+    // One last, unconditional call so a progress UI driven purely off this
+    // callback can reach 100% -- `lines_read` only lands on a multiple of
+    // `PROGRESS_REPORT_INTERVAL` by chance, so the loop above may never
+    // report the true final count. `ControlFlow::Break` here is not
+    // honored: the parse has already fully succeeded, so there is nothing
+    // left to cancel.
+    if let Some(callback) = &load_options.progress_callback {
+        let progress = LoadProgress {
+            lines_read,
+            bytes_read,
+        };
+        let _ = callback.call(&progress);
+    }
+
     Ok((models.into_models(), materials.into_materials()))
 }
 
