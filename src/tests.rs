@@ -273,17 +273,19 @@ fn non_triangulated_quad() {
     assert!(mats.is_empty());
 
     // First one is a quad formed by two triangles
-    // so face_arities is empty (all triangles)
-    assert!(models[0].mesh.face_arities.is_empty());
+    // so face_arities is None (all triangles)
+    assert!(models[0].mesh.face_arities.is_none());
+    assert!(models[0].mesh.is_triangulated());
 
     // Second is a quad face
-    assert_eq!(models[1].mesh.face_arities.len(), 1);
-    assert_eq!(models[1].mesh.face_arities[0], 4);
+    assert_eq!(models[1].mesh.face_count(), 1);
+    assert_eq!(models[1].mesh.face_arity(0), 4);
     let expect_quad_indices = vec![0, 1, 2, 3];
     assert_eq!(models[1].mesh.indices, expect_quad_indices);
 
     // Third is a triangle
-    assert!(models[2].mesh.face_arities.is_empty());
+    assert!(models[2].mesh.face_arities.is_none());
+    assert!(models[2].mesh.is_triangulated());
 }
 
 #[test]
